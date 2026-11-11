@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html class="nut-full">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Báo cáo kết quả làm việc của NVTT tại điểm bán</title>
+
+    <style id="report-style">
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            margin: 0;
+            padding: 5px;
+            color: #000;
+        }
+
+        .toolbar {
+            width: 100%;
+            padding: 5px;
+            text-align: right;
+            background: #f4f4f4;
+            margin-bottom: 5px;
+        }
+
+        .export-button {
+            display: inline-block;
+            padding: 7px 13px;
+            margin-left: 5px;
+            border: 1px solid #777;
+            background: #fff;
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 10pt;
+        }
+        .export-button:hover { background: #e9e9e9; }
+
+        /* Cảnh báo dữ liệu (JS điền), nằm ngoài bảng nên không đi vào Excel / bản in */
+        .warn {
+            margin: 0 0 6px;
+            padding: 6px 10px;
+            background: #fff7ed;
+            border: 1px solid #fdba74;
+            color: #9a3412;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .warn[hidden] { display: none; }
+
+        .report-container { width: 100%; overflow: auto; }
+
+        /* Mỗi nhân viên / điểm bán là một bảng .rpt 39 cột; JS nhân bản bảng này cho từng trang */
+        table.rpt {
+            width: 1724px;
+            table-layout: fixed;
+            border-collapse: collapse;
+            border-spacing: 0;
+            font-family: Arial, sans-serif;
+            font-size: 10px;
+            color: #000;
+            background: #fff;
+            margin-bottom: 40px;
+        }
+
+        table.rpt td, table.rpt th {
+            border: 0;
+            padding: 1px 2px;
+            text-align: center;
+            vertical-align: middle;
+            overflow-wrap: break-word;
+        }
+
+        /* ===== Tiêu đề ===== */
+        .rpt td.logo-l { text-align: left; }
+        .rpt td.logo-r { text-align: right; }
+
+        .rpt td.t1 {
+            height: 40px;
+            font-family: "Times New Roman", serif;
+            font-size: 22pt;
+            font-weight: bold;
+            vertical-align: bottom;
+            white-space: nowrap;
+        }
+        .rpt td.t2 {
+            height: 24px;
+            font-family: "Times New Roman", serif;
+            font-size: 12pt;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .rpt td.t3 {
+            height: 26px;
+            font-family: "Times New Roman", serif;
+            font-size: 12pt;
+            white-space: nowrap;
+        }
+
+        /* ===== Khối thông tin NVTT / điểm bán ===== */
+        .rpt td.lab {
+            height: 17px;
+            font-family: "Times New Roman", serif;
+            font-size: 10pt;
+            font-weight: bold;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .rpt td.val {
+            font-family: "Times New Roman", serif;
+            font-size: 10pt;
+            text-align: left;
+            border-bottom: 1px dotted #000;
+        }
+
+        /* ===== Tiêu đề bảng ===== */
+        .rpt thead tr.h th {
+            border: 1px solid #000;
+            background: #fff;
+            font-weight: bold;
+            line-height: 1.15;
+        }
+        .rpt thead tr.h1 th {
+            height: 22px;
+            font-family: "Times New Roman", serif;
+            font-size: 11px;
+        }
+        .rpt thead tr.h2 th {
+            height: 62px;
+            font-size: 9px;
+        }
+        .rpt thead tr.h2 th.pr { font-size: 9px; padding: 1px 0; }
+        .rpt .tiny { font-size: 6.5px; }
+        .rpt thead tr.h th.big { font-family: "Times New Roman", serif; font-size: 12px; padding: 1px 0; }
+        .rpt thead tr.h th.sm { font-size: 10px; }
+
+        /* ===== Các dòng ngày ===== */
+        .rpt tbody td {
+            border: 1px solid #000;
+            height: 30px;
+            font-size: 10px;
+        }
+        .rpt tbody td.dn { font-family: "Times New Roman", serif; font-size: 11px; font-weight: bold; }
+        .rpt tbody td.th { font-family: "Times New Roman", serif; font-size: 10px; font-style: italic; }
+        .rpt tbody tr.sun td { background: #eeece1; }
+        .rpt tbody tr.sun td.xn,
+        .rpt tbody tr.sun td.pn,
+        .rpt tbody tr.sun td.sv { background: #fff; }
+
+        /* ===== Khối tổng kết tháng (bên phải) ===== */
+        .rpt tbody td.pn { text-align: left; font-family: "Times New Roman", serif; font-size: 10px; padding-left: 4px; }
+        .rpt tbody td.sv { font-size: 11px; }
+        .rpt tbody td.tot { background: #ebf1de !important; font-weight: bold; }
+        .rpt tbody td.big { font-size: 12px; font-weight: bold; }
+
+        /* ===== Chữ ký ===== */
+        .rpt tbody td.sg-h {
+            border: 0;
+            height: 24px;
+            font-family: "Times New Roman", serif;
+            font-size: 11pt;
+            font-weight: bold;
+            vertical-align: bottom;
+        }
+        .rpt tbody td.sg-s {
+            border: 0;
+            height: 20px;
+            font-family: "Times New Roman", serif;
+            font-size: 8pt;
+            font-style: italic;
+            vertical-align: top;
+        }
+        .rpt tbody td.sgL { border-left: 1px solid #000; }
+        .rpt tbody td.sgR { border-right: 1px solid #000; }
+        .rpt tbody td.sgb {
+            border: 0;
+            border-left: 1px solid #000;
+            border-right: 1px solid #000;
+            border-bottom: 1px solid #000;
+        }
+
+        /* ===== In ===== */
+        @page { size: A3 landscape; margin: 8mm; }
+
+        @media print {
+            body { margin: 0; padding: 0; }
+            .toolbar, .warn { display: none !important; }
+            .report-container { overflow: visible; }
+            table.rpt {
+                zoom: 0.85;
+                margin-bottom: 0;
+                page-break-after: always;
+            }
+            table.rpt:last-child { page-break-after: auto; }
+            .rpt thead { display: table-row-group; }
+            .rpt tr { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="toolbar">
+        <a class="export-button" href="#" onclick="exportExcel(); return false;">📊 Kết xuất Excel</a>
+        <a class="export-button" href="#" onclick="window.print(); return false;">🖨️ In / Lưu PDF</a>
+    </div>
+
+    <div id="divWarn" class="warn" hidden></div>
+
+    <div class="report-container" id="divReport">
+
+        <!-- Bảng mẫu: JS nhân bản bảng này cho từng nhân viên / điểm bán (đổ dữ liệu theo data-f, data-s) -->
+        <table class="rpt">
+
+            <!-- 39 cột: Ngày, Thứ, 32 cột sản phẩm (4 khối x 8), Xác nhận, 4 cột tổng kết -->
+            <colgroup>
+                <col style="width:36px">
+                <col style="width:48px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:38px">
+                <col style="width:70px">
+                <col style="width:130px">
+                <col style="width:62px">
+                <col style="width:62px">
+                <col style="width:100px">
+            </colgroup>
+
+            <thead>
+
+                <!-- ===== Logo + tiêu đề ===== -->
+                <tr>
+                    <td colspan="6" rowspan="3" class="logo-l">
+                        <img src="https://demo.zilcode.com/media/3/13/7/orit.jpg"
+                             width="170" height="52" alt="ORIT Workforce">
+                    </td>
+                    <td colspan="27" class="t1">BÁO CÁO KẾT QUẢ LÀM VIỆC CỦA NVTT TẠI ĐIỂM BÁN</td>
+                    <td colspan="6" rowspan="3" class="logo-r">
+                        <!-- Đổi src sang đường dẫn logo HABECO HNB Trading thực tế -->
+                        <img src="habeco_hnb.png" width="150" height="52" alt="HABECO HNB Trading Ltd.">
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="27" class="t2">Tháng <span data-f="thang">05</span> năm <span data-f="nam">2026</span></td>
+                </tr>
+                <tr>
+                    <td colspan="27" class="t3">Khu vực/Thị trường: <span data-f="kv"></span></td>
+                </tr>
+
+                <!-- ===== Thông tin NVTT / điểm bán ===== -->
+                <tr>
+                    <td colspan="3" class="lab">Tên NVTT:</td>
+                    <td colspan="7" class="val" data-f="nv"></td>
+                    <td colspan="10"></td>
+                    <td colspan="4" class="lab">Tên Nhà hàng :</td>
+                    <td colspan="11" class="val" data-f="ten"></td>
+                    <td colspan="1" class="lab">Giờ làm việc:</td>
+                    <td colspan="3" class="val" data-f="gio"></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="lab">Team Leader:</td>
+                    <td colspan="7" class="val" data-f="tl"></td>
+                    <td colspan="10"></td>
+                    <td colspan="4" class="lab">Địa chỉ Nhà hàng :</td>
+                    <td colspan="11" class="val" data-f="diachi"></td>
+                    <td colspan="1" class="lab">Task Force (nếu có):</td>
+                    <td colspan="3" class="val" data-f="tf"></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="lab">Giám sát Khu vực:</td>
+                    <td colspan="7" class="val" data-f="gs"></td>
+                    <td colspan="10"></td>
+                    <td colspan="4" class="lab">Mã Điểm bán :</td>
+                    <td colspan="11" class="val" data-f="ma"></td>
+                    <td colspan="4"></td>
+                </tr>
+
+                <!-- ===== Tiêu đề bảng, tầng 1 ===== -->
+                <tr class="h h1">
+                    <th rowspan="2" class="big">Ngày</th>
+                    <th rowspan="2" class="big">Thứ</th>
+                    <th colspan="8">Tồn đầu ca</th>
+                    <th colspan="8">Số nhập trong ca</th>
+                    <th colspan="8">Sản lượng bán</th>
+                    <th colspan="8">Tồn cuối ca</th>
+                    <th rowspan="2" class="sm">Xác nhận<br>của Chủ<br>Nhà hàng</th>
+                    <th colspan="4" class="big">TỔNG KẾT BÁO CÁO THÁNG</th>
+                </tr>
+
+                <!-- ===== Tiêu đề bảng, tầng 2 ===== -->
+                <tr class="h h2">
+                    <th class="pr">Keg 1L<br><span class="tiny">(12 keg/két)</span></th><th class="pr">Bold<br>chai<br>20</th><th class="pr">Light<br>chai<br>20</th><th class="pr">Bold<br>lon<br>24</th><th class="pr">Light<br>lon<br>24</th><th class="pr">Trúc<br>Bạch<br>24</th><th class="pr">Pre lon<br>sleek<br>24</th><th class="pr">Pre<br>chai<br>20</th><th class="pr">Keg 1L<br><span class="tiny">(12 keg/két)</span></th><th class="pr">Bold<br>chai<br>20</th><th class="pr">Light<br>chai<br>20</th><th class="pr">Bold<br>lon<br>24</th><th class="pr">Light<br>lon<br>24</th><th class="pr">Trúc<br>Bạch<br>24</th><th class="pr">Pre lon<br>sleek<br>24</th><th class="pr">Pre<br>chai<br>20</th><th class="pr">Keg 1L<br><span class="tiny">(12 keg/két)</span></th><th class="pr">Bold<br>chai<br>20</th><th class="pr">Light<br>chai<br>20</th><th class="pr">Bold<br>lon<br>24</th><th class="pr">Light<br>lon<br>24</th><th class="pr">Trúc<br>Bạch<br>24</th><th class="pr">Pre lon<br>sleek<br>24</th><th class="pr">Pre<br>chai<br>20</th><th class="pr">Keg 1L<br><span class="tiny">(12 keg/két)</span></th><th class="pr">Bold<br>chai<br>20</th><th class="pr">Light<br>chai<br>20</th><th class="pr">Bold<br>lon<br>24</th><th class="pr">Light<br>lon<br>24</th><th class="pr">Trúc<br>Bạch<br>24</th><th class="pr">Pre lon<br>sleek<br>24</th><th class="pr">Pre<br>chai<br>20</th>
+                    <th class="big">Sản phẩm</th>
+                    <th class="sm">SL khoán<br>(két/tháng)</th>
+                    <th class="sm">Số bán<br>(két/tháng)</th>
+                    <th class="big">Chênh<br>lệch</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <tr class="d" data-day="1"><td class="dn txt">01</td><td class="th txt">Thứ 6</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="xn" rowspan="31"></td><td class="pn">Bia Keg 1L</td><td class="sv" data-s="kh-keg"></td><td class="sv" data-s="ban-keg"></td><td class="sv" data-s="ch-keg"></td></tr>
+                <tr class="d" data-day="2"><td class="dn txt">02</td><td class="th txt">Thứ 7</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="pn">Bia Bold</td><td class="sv" data-s="kh-bold"></td><td class="sv" data-s="ban-bold"></td><td class="sv" data-s="ch-bold"></td></tr>
+                <tr class="d sun" data-day="3"><td class="dn txt">03</td><td class="th txt">Chủ Nhật</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="pn">Bia Light</td><td class="sv" data-s="kh-light"></td><td class="sv" data-s="ban-light"></td><td class="sv" data-s="ch-light"></td></tr>
+                <tr class="d" data-day="4"><td class="dn txt">04</td><td class="th txt">Thứ 2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="pn">Bia Trúc Bạch</td><td class="sv" data-s="kh-tb"></td><td class="sv" data-s="ban-tb"></td><td class="sv" data-s="ch-tb"></td></tr>
+                <tr class="d" data-day="5"><td class="dn txt">05</td><td class="th txt">Thứ 3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="pn">Bia HN Premium lon sleek</td><td class="sv" data-s="kh-prelon"></td><td class="sv" data-s="ban-prelon"></td><td class="sv" data-s="ch-prelon"></td></tr>
+                <tr class="d" data-day="6"><td class="dn txt">06</td><td class="th txt">Thứ 4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="pn">Bia HN Premium chai</td><td class="sv" data-s="kh-prechai"></td><td class="sv" data-s="ban-prechai"></td><td class="sv" data-s="ch-prechai"></td></tr>
+                <tr class="d" data-day="7"><td class="dn txt">07</td><td class="th txt">Thứ 5</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="pn tot">Tổng Nhãn hàng</td><td class="sv tot" data-s="kh-tot"></td><td class="sv tot" data-s="ban-tot"></td><td class="sv tot" data-s="ch-tot"></td></tr>
+                <tr class="d" data-day="8"><td class="dn txt">08</td><td class="th txt">Thứ 6</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="pn">Ngày công chuẩn</td><td class="sv big" colspan="3" data-s="congchuan">26</td></tr>
+                <tr class="d" data-day="9"><td class="dn txt">09</td><td class="th txt">Thứ 7</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="pn tot">Ngày công thực làm</td><td class="sv big tot" colspan="3" data-s="congthuc"></td></tr>
+                <tr class="d sun" data-day="10"><td class="dn txt">10</td><td class="th txt">Chủ Nhật</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="sg-h sgL" colspan="2">NVTT</td><td class="sg-h sgR" colspan="2">TL/TF</td></tr>
+                <tr class="d" data-day="11"><td class="dn txt">11</td><td class="th txt">Thứ 2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="sg-s sgL" colspan="2">(ký &amp; ghi rõ họ tên)</td><td class="sg-s sgR" colspan="2">(ký &amp; ghi rõ họ tên)</td></tr>
+                <tr class="d" data-day="12"><td class="dn txt">12</td><td class="th txt">Thứ 3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="sgb" colspan="4" rowspan="20"></td></tr>
+                <tr class="d" data-day="13"><td class="dn txt">13</td><td class="th txt">Thứ 4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="14"><td class="dn txt">14</td><td class="th txt">Thứ 5</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="15"><td class="dn txt">15</td><td class="th txt">Thứ 6</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="16"><td class="dn txt">16</td><td class="th txt">Thứ 7</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d sun" data-day="17"><td class="dn txt">17</td><td class="th txt">Chủ Nhật</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="18"><td class="dn txt">18</td><td class="th txt">Thứ 2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="19"><td class="dn txt">19</td><td class="th txt">Thứ 3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="20"><td class="dn txt">20</td><td class="th txt">Thứ 4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="21"><td class="dn txt">21</td><td class="th txt">Thứ 5</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="22"><td class="dn txt">22</td><td class="th txt">Thứ 6</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="23"><td class="dn txt">23</td><td class="th txt">Thứ 7</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d sun" data-day="24"><td class="dn txt">24</td><td class="th txt">Chủ Nhật</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="25"><td class="dn txt">25</td><td class="th txt">Thứ 2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="26"><td class="dn txt">26</td><td class="th txt">Thứ 3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="27"><td class="dn txt">27</td><td class="th txt">Thứ 4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="28"><td class="dn txt">28</td><td class="th txt">Thứ 5</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="29"><td class="dn txt">29</td><td class="th txt">Thứ 6</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d" data-day="30"><td class="dn txt">30</td><td class="th txt">Thứ 7</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr class="d sun" data-day="31"><td class="dn txt">31</td><td class="th txt">Chủ Nhật</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+            </tbody>
+
+        </table>
+
+    </div>
+
+    <script>
+        /* ===== Hàm hỗ trợ xuất Excel ===== */
+
+        function toHex(color) {
+            var m = (color || "").match(/rgba?\(([^)]+)\)/);
+            if (!m) return color || "#000000";
+            var p = m[1].split(",").map(function (s) { return parseFloat(s); });
+            if (p.length === 4 && p[3] === 0) return "#ffffff";
+            return "#" + p.slice(0, 3).map(function (n) {
+                var h = Math.round(n).toString(16);
+                return h.length < 2 ? "0" + h : h;
+            }).join("");
+        }
+
+        function borderSide(cs, side) {
+            var w = parseFloat(cs["border" + side + "Width"]);
+            var st = cs["border" + side + "Style"];
+            if (w > 0 && st !== "none") {
+                return (st === "dotted" ? ".5pt dotted " : ".5pt solid ") + toHex(cs["border" + side + "Color"]);
+            }
+            return "none";
+        }
+
+        // Đóng cứng style hiển thị vào từng ô (Excel không hiểu class). Ô có class "txt" giữ dạng chữ (01, Thứ 6).
+        function styleCell(src, dst) {
+            var cs = window.getComputedStyle(src);
+
+            var align = cs.textAlign;
+            if (align === "start") align = "left";
+            if (align === "end") align = "right";
+
+            var valign = cs.verticalAlign;
+            if (valign !== "top" && valign !== "bottom") valign = "middle";
+
+            var st =
+                "background:" + toHex(cs.backgroundColor) + ";" +
+                "color:" + toHex(cs.color) + ";" +
+                "font-family:" + cs.fontFamily + ";" +
+                "font-size:" + (parseFloat(cs.fontSize) * 0.75).toFixed(1) + "pt;" +
+                "font-weight:" + cs.fontWeight + ";" +
+                "font-style:" + cs.fontStyle + ";" +
+                "text-align:" + align + ";" +
+                "vertical-align:" + valign + ";" +
+                "border-top:" + borderSide(cs, "Top") + ";" +
+                "border-right:" + borderSide(cs, "Right") + ";" +
+                "border-bottom:" + borderSide(cs, "Bottom") + ";" +
+                "border-left:" + borderSide(cs, "Left") + ";" +
+                "white-space:" + (cs.whiteSpace === "nowrap" ? "nowrap" : "normal") + ";" +
+                "word-wrap:break-word;";
+
+            if (src.classList.contains("txt")) st += 'mso-number-format:"\\@";';
+
+            dst.setAttribute("style", st);
+            dst.removeAttribute("class");
+            dst.removeAttribute("id");
+            dst.removeAttribute("width");
+            dst.removeAttribute("height");
+            dst.removeAttribute("data-f");
+            dst.removeAttribute("data-s");
+        }
+
+        function cloneSection(section) {
+            var c = section.cloneNode(true);
+            var srcRows = section.rows;
+            var dstRows = c.rows;
+
+            for (var i = 0; i < srcRows.length; i++) {
+                dstRows[i].removeAttribute("class");
+                dstRows[i].removeAttribute("data-day");
+                dstRows[i].setAttribute("style", "height:" + srcRows[i].offsetHeight + "px;");
+                for (var j = 0; j < srcRows[i].cells.length; j++) {
+                    styleCell(srcRows[i].cells[j], dstRows[i].cells[j]);
+                }
+            }
+
+            var srcImgs = section.querySelectorAll("img");
+            var dstImgs = c.querySelectorAll("img");
+            for (var k = 0; k < srcImgs.length; k++) {
+                dstImgs[k].setAttribute("src", srcImgs[k].src);
+                dstImgs[k].setAttribute("width", srcImgs[k].offsetWidth || srcImgs[k].width);
+                dstImgs[k].setAttribute("height", srcImgs[k].offsetHeight || srcImgs[k].height);
+            }
+
+            return c.innerHTML;
+        }
+
+        function exportExcel() {
+
+            var tables = document.querySelectorAll("#divReport table.rpt");
+
+            if (!tables.length) {
+                alert("Không tìm thấy vùng báo cáo!");
+                return;
+            }
+
+            // Mỗi nhân viên / điểm bán là một bảng, cách nhau bằng ngắt trang (cùng độ rộng cột)
+            var body = "";
+            Array.prototype.forEach.call(tables, function (table, idx) {
+                var colgroup = "<colgroup>";
+                table.querySelectorAll("colgroup col").forEach(function (col) {
+                    var w = parseFloat(col.style.width) || 40;
+                    colgroup += '<col width="' + w + '" style="width:' + w + 'px">';
+                });
+                colgroup += "</colgroup>";
+
+                if (idx > 0) {
+                    body += '<br clear="all" style="mso-special-character:line-break;page-break-before:always">';
+                }
+
+                body += '<table border="0" cellpadding="0" cellspacing="0" ' +
+                        'style="border-collapse:collapse;table-layout:fixed;">' +
+                        colgroup +
+                        cloneSection(table.tHead) +
+                        cloneSection(table.tBodies[0]) +
+                        '</table>';
+            });
+
+            var html =
+                '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+                'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+                'xmlns="http://www.w3.org/TR/REC-html40">' +
+                '<head>' +
+                '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
+                '<!--[if gte mso 9]>' +
+                '<xml>' +
+                    '<x:ExcelWorkbook>' +
+                        '<x:ExcelWorksheets>' +
+                            '<x:ExcelWorksheet>' +
+                                '<x:Name>MS01</x:Name>' +
+                                '<x:WorksheetOptions>' +
+                                    '<x:DoNotDisplayGridlines/>' +
+                                    '<x:FitToPage/>' +
+                                    '<x:Print>' +
+                                        '<x:FitWidth>1</x:FitWidth>' +
+                                        '<x:FitHeight>0</x:FitHeight>' +
+                                        '<x:ValidPrinterInfo/>' +
+                                        '<x:PaperSizeIndex>8</x:PaperSizeIndex>' +
+                                    '</x:Print>' +
+                                '</x:WorksheetOptions>' +
+                            '</x:ExcelWorksheet>' +
+                        '</x:ExcelWorksheets>' +
+                    '</x:ExcelWorkbook>' +
+                '</xml>' +
+                '<![endif]-->' +
+                '<style>' +
+                    'body{font-family:Arial,sans-serif;font-size:10pt;}' +
+                    'table{border-collapse:collapse;table-layout:fixed;}' +
+                    '@page{size:29.7cm 42cm;mso-page-orientation:landscape;margin:0.5cm;}' +
+                '</style>' +
+                '</head>' +
+                '<body>' + body + '</body>' +
+                '</html>';
+
+            var blob = new Blob(["﻿", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement("a");
+
+            link.href = url;
+            link.download = "MS01_KetQuaLamViecNVTT.xls";
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+        }
+    </script>
+
+</body>
+</html>

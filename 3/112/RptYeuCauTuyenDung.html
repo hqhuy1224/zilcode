@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <title>Báo cáo yêu cầu tuyển dụng</title>
+
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 13px;
+            margin: 14px;
+            color: #000;
+        }
+
+        .btn-export {
+            float: right;
+            padding: 8px 16px;
+            border: none;
+            background: #28a745;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 6px;
+            transition: all .25s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,.15);
+            margin-bottom: 10px;
+        }
+
+        .btn-export:hover {
+            background: #218838;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,.25);
+        }
+
+        .company-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            min-height: 58px;
+        }
+
+        .company-logo {
+            flex: 0 0 auto;
+            width: 54px;
+        }
+
+        .company-logo img {
+            display: block;
+            width: 50px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .company-left {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .company-left h2 {
+            margin: 0;
+            font-size: 19px;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1.15;
+        }
+
+        .company-left .address {
+            margin-top: 3px;
+            font-size: 14px;
+            line-height: 1.2;
+        }
+
+        .rpt-title {
+            text-align: center;
+            margin-top: 2px !important;
+            margin-bottom: 18px !important;
+            clear: both;
+        }
+
+        .rpt-title h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+
+        .report-page {
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0 0 24px 0;
+            padding: 0;
+            background: #fff;
+        }
+
+        .report-page + .report-page {
+            border-top: 1px solid #ddd;
+            padding-top: 18px;
+        }
+
+        @media print {
+            .report-page {
+                page-break-after: always;
+                break-after: page;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+            }
+
+            .report-page:last-child {
+                page-break-after: auto;
+                break-after: auto;
+            }
+
+            .report-page + .report-page {
+                border-top: none !important;
+                padding-top: 0 !important;
+            }
+        }
+
+
+        .print-only-header {
+            display: none;
+        }
+
+        @media screen {
+            .print-report-page + .print-report-page {
+                margin-top: 20px;
+            }
+        }
+
+        @media print {
+            .screen-report-header {
+                display: none !important;
+            }
+
+            .print-only-header {
+                display: block !important;
+                margin-bottom: 10px;
+            }
+
+            .print-report-page {
+                page-break-after: always;
+                break-after: page;
+                page-break-inside: avoid;
+                break-inside: avoid;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .print-report-page:last-child {
+                page-break-after: auto;
+                break-after: auto;
+            }
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: hidden;
+        }
+
+
+        .table-container {
+            margin-bottom: 18px;
+        }
+
+        .table-container:last-child {
+            margin-bottom: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-top: 5px;
+        }
+
+        th, td {
+            border: 1px solid #000;
+            padding: 5px;
+            vertical-align: middle;
+            word-wrap: break-word;
+        }
+
+        .rpt-table .header-row th,
+        .rpt-table .header-row td {
+            background: #9db9d9;
+            font-weight: bold;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 14px;
+            line-height: 1.4;
+            padding: 12px 6px;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+
+        .rpt-table .meta-row td {
+            text-align: left;
+            padding-left: 10px;
+            font-size: 15px;
+            font-weight: bold;
+            padding-top: 7px;
+            padding-bottom: 7px;
+        }
+
+        .rpt-table tr:not(.meta-row):not(.header-row) td {
+            height: 38px;
+            font-size: 13px;
+            text-align: center;
+            vertical-align: middle;
+            padding: 7px 5px;
+            line-height: 1.35;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+
+        .total-row td {
+            background: #d9e2f3 !important;
+            font-weight: bold !important;
+            font-size: 13px !important;
+            text-align: center !important;
+        }
+
+        .col-stt { width: 3.5% !important; }
+        .col-loai { width: 7.5% !important; }
+        .col-soluong { width: 6% !important; }
+        .col-vitri { width: 7% !important; }
+        .col-mota { width: 12% !important; }
+        .col-ky-nang { width: 9.5% !important; }
+        .col-kinhnghiem { width: 6.5% !important; }
+        .col-mucluong { width: 7.5% !important; }
+        .col-ngoaihinh { width: 8% !important; }
+        .col-ngoaingu { width: 9% !important; }
+        .col-tinhoc { width: 9% !important; }
+        .col-suckhoe { width: 8% !important; }
+        .col-ghichu { width: 6% !important; }
+
+        @media print {
+            .table-container {
+                margin-bottom: 10px !important;
+            }
+
+            @page {
+                size: A4 landscape;
+                margin: 6mm;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
+                font-size: 13px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .btn-export {
+                display: none !important;
+            }
+
+            .company-left h2 {
+                font-size: 14px !important;
+            }
+
+            .company-left .address {
+                font-size: 10px !important;
+            }
+
+            .company-right {
+                margin-top: 5px !important;
+            }
+
+            .company-right img {
+                width: 60px !important;
+            }
+
+            .rpt-title {
+                margin-top: 8px !important;
+                margin-bottom: 8px !important;
+            }
+
+            .rpt-title h1 {
+                font-size: 17px !important;
+            }
+
+            .rpt-table .meta-row td {
+                font-size: 15px !important;
+                padding: 4px 2px !important;
+                padding-left: 5px !important;
+            }
+
+            .rpt-table .header-row th {
+                font-size: 15px !important;
+                padding: 5px 2px !important;
+            }
+
+            .rpt-table tr:not(.meta-row):not(.header-row) td {
+                height: 24px !important;
+                font-size: 15px !important;
+            }
+
+            .total-row td {
+                font-size: 15px !important;
+            }
+
+            table {
+                min-width: 0 !important;
+            }
+
+            .col-stt { width: 28px !important; }
+        }
+    </style>
+</head>
+
+<body>
+
+<button class="btn-export" onclick="exportExcel()">
+    Kết xuất Excel
+</button>
+
+<div id="reportContent">
+    <div class="screen-report-header">
+        <div class="company-header">
+            <div class="company-logo">
+                <img src="LOGO.jpg" alt="Logo ORIT">
+            </div>
+            <div class="company-left">
+                <h2>CÔNG TY CỔ PHẦN ĐẦU TƯ ORIT</h2>
+                <div class="address">Số 3/20, đường Ngụy Như Kon Tum, Thanh Xuân, Hà Nội</div>
+            </div>
+        </div>
+
+        <div class="rpt-title">
+            <h1>BÁO CÁO YÊU CẦU TUYỂN DỤNG</h1>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+<script>
+async function exportExcel() {
+    const groups = document.querySelectorAll(".rpt-table");
+    if (!groups.length) {
+        alert("Không có dữ liệu để xuất!");
+        return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Yêu cầu tuyển dụng");
+
+    // Cấu hình trang in Excel gọn như giao diện báo cáo
+    worksheet.pageSetup = {
+        orientation: 'landscape',
+        paperSize: 9,
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        margins: {
+            left: 0.25, right: 0.25,
+            top: 0.35, bottom: 0.35,
+            header: 0.15, footer: 0.15
+        }
+    };
+    worksheet.views = [{ state: 'normal', zoomScale: 85 }];
+
+    worksheet.columns = [
+        { width: 5 },   // STT
+        { width: 13 },  // Loại tuyển dụng
+        { width: 9 },   // Số lượng
+        { width: 12 },  // Vị trí
+        { width: 22 },  // Mô tả công việc
+        { width: 18 },  // Kỹ năng
+        { width: 12 },  // Số năm kinh nghiệm
+        { width: 13 },  // Mức lương
+        { width: 14 },  // Ngoại hình
+        { width: 18 },  // Ngoại ngữ
+        { width: 18 },  // Trình độ tin học
+        { width: 16 },  // Yêu cầu sức khỏe
+        { width: 18 }   // Ghi chú
+    ];
+
+    const totalCols = 13;
+    const thinBorder = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        right: { style: "thin" },
+        bottom: { style: "thin" }
+    };
+
+    try {
+        const logoResponse = await fetch("LOGO.jpg");
+        if (logoResponse.ok) {
+            const logoBuffer = await logoResponse.arrayBuffer();
+            const logoId = workbook.addImage({
+                buffer: logoBuffer,
+                extension: "jpeg"
+            });
+            worksheet.addImage(logoId, {
+                tl: { col: 0.05, row: 0.05 },
+                ext: { width: 42, height: 42 }
+            });
+        }
+    } catch (e) {
+        // Không chặn xuất Excel nếu logo không tải được
+    }
+
+    worksheet.mergeCells(1, 1, 1, totalCols);
+    worksheet.getCell("A1").value = "      CÔNG TY CỔ PHẦN ĐẦU TƯ ORIT";
+    worksheet.getCell("A1").font = { bold: true, size: 14, name: "Times New Roman" };
+
+    worksheet.mergeCells(2, 1, 2, totalCols);
+    worksheet.getCell("A2").value = "      Số 3/20, đường Ngụy Như Kon Tum, Thanh Xuân, Hà Nội";
+    worksheet.getCell("A2").font = { size: 11, name: "Times New Roman" };
+
+    worksheet.mergeCells(4, 1, 4, totalCols);
+    worksheet.getCell("A4").value = "BÁO CÁO YÊU CẦU TUYỂN DỤNG";
+    worksheet.getCell("A4").font = { bold: true, size: 20, name: "Times New Roman" };
+    worksheet.getCell("A4").alignment = { horizontal: "center" };
+
+    worksheet.addRow([]);
+
+    groups.forEach(function(table) {
+        const rows = Array.from(table.rows);
+        if (rows.length < 4) return;
+
+        for (let r = 0; r < 3; r++) {
+            const excelRowIdx = worksheet.rowCount + 1;
+
+            if (r === 0 || r === 1) {
+                worksheet.mergeCells(excelRowIdx, 1, excelRowIdx, 4);
+                worksheet.mergeCells(excelRowIdx, 5, excelRowIdx, 8);
+                worksheet.mergeCells(excelRowIdx, 9, excelRowIdx, totalCols);
+
+                worksheet.getCell(excelRowIdx, 1).value = rows[r].cells[0]?.innerText.trim() || "";
+                worksheet.getCell(excelRowIdx, 5).value = rows[r].cells[1]?.innerText.trim() || "";
+                worksheet.getCell(excelRowIdx, 9).value = rows[r].cells[2]?.innerText.trim() || "";
+            } else {
+                worksheet.mergeCells(excelRowIdx, 1, excelRowIdx, 4);
+                worksheet.mergeCells(excelRowIdx, 5, excelRowIdx, totalCols);
+
+                worksheet.getCell(excelRowIdx, 1).value = rows[r].cells[0]?.innerText.trim() || "";
+                worksheet.getCell(excelRowIdx, 5).value = rows[r].cells[1]?.innerText.trim() || "";
+            }
+
+            for (let c = 1; c <= totalCols; c++) {
+                const cell = worksheet.getCell(excelRowIdx, c);
+                cell.font = { bold: true, size: 11, name: "Times New Roman" };
+                cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+                cell.border = thinBorder;
+            }
+        }
+
+        const headerRow = worksheet.addRow([
+            "STT", "Loại tuyển dụng", "Số lượng tuyển", "Vị trí",
+            "Mô tả công việc", "Kỹ năng", "Số năm kinh nghiệm", "Mức lương",
+            "Ngoại hình", "Ngoại ngữ", "Trình độ tin học",
+            "Yêu cầu sức khỏe", "Ghi chú"
+        ]);
+
+        headerRow.height = 30;
+        headerRow.eachCell(cell => {
+            cell.font = { bold: true, name: "Times New Roman", size: 10 };
+            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "9DB9D9" } };
+            cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+            cell.border = thinBorder;
+        });
+
+        for (let i = 4; i < rows.length; i++) {
+            const r = rows[i];
+            const tds = r.cells;
+
+            const rowValues = [];
+            for (let c = 0; c < totalCols; c++) {
+                rowValues.push(tds[c]?.innerText.trim() || "");
+            }
+
+            const excelRow = worksheet.addRow(rowValues);
+            excelRow.height = 22;
+
+            excelRow.eachCell({ includeEmpty: true }, (cell) => {
+                cell.border = thinBorder;
+                cell.font = { name: "Times New Roman", size: 10 };
+                cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+            });
+
+
+        }
+
+        worksheet.addRow([]);
+
+        // Mỗi yêu cầu tuyển dụng là một trang khi in Excel.
+        try {
+            worksheet.getRow(worksheet.rowCount).addPageBreak();
+        } catch (e) {}
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob(
+        [buffer],
+        { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
+    );
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "bao_cao_yeu_cau_tuyen_dung_" +
+        new Date().toLocaleDateString("vi-VN").replace(/\//g, ".") + ".xlsx";
+    link.click();
+}
+</script>
+
+</body>
+</html>

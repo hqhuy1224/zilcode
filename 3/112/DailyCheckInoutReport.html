@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html class="nut-full">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Daily Check In-Out Report</title>
+
+    <style id="report-style">
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            margin: 0;
+            padding: 5px;
+            color: #000;
+        }
+
+        .toolbar {
+            width: 100%;
+            padding: 5px;
+            text-align: right;
+            background: #f4f4f4;
+            margin-bottom: 5px;
+        }
+
+        .export-button {
+            display: inline-block;
+            padding: 7px 13px;
+            margin-left: 5px;
+            border: 1px solid #777;
+            background: #fff;
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 10pt;
+        }
+
+        .export-button:hover {
+            background: #e9e9e9;
+        }
+
+        #divReport {
+            width: 4100px;
+            background: #fff;
+        }
+
+        /* Phần đầu báo cáo */
+        .report-title-table {
+            width: 4100px;
+            table-layout: fixed;
+            border-collapse: collapse;
+            margin: 0;
+        }
+
+        .report-title-table td {
+            border: 0;
+            padding: 0;
+            vertical-align: middle;
+        }
+
+        .company-box {
+            width: 480px;
+            height: 175px;
+            border-right: 1px solid #999 !important;
+            border-bottom: 1px solid #000 !important;
+            vertical-align: top !important;
+            padding: 5px !important;
+        }
+
+        .company-logo {
+            height: 88px;
+            padding: 5px 5px 8px;
+        }
+
+        .company-logo img {
+            width: 195px;
+            height: 60px;
+            object-fit: contain;
+            object-position: left center;
+        }
+
+        .company-info {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .company-info td {
+            border: 0;
+            padding: 2px 3px;
+            height: 22px;
+        }
+
+        .company-info .info-label {
+            width: 180px;
+        }
+
+        .company-info .info-colon {
+            width: 15px;
+            text-align: center;
+        }
+
+        .report-title-box {
+            height: 175px;
+            border-bottom: 1px solid #000 !important;
+            text-align: center;
+            vertical-align: bottom !important;
+            padding: 0 10px 12px !important;
+        }
+
+        #reportTitle {
+            font-size: 32px;
+            font-weight: bold;
+            font-style: italic;
+            color: red;
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        /* Khu vực bảng chấm công */
+        .report-container {
+            width: 100%;
+            overflow: auto;
+            max-height: 78vh;
+        }
+
+        #tblReport {
+            width: 4100px;
+            table-layout: fixed;
+            border-collapse: collapse;
+            border-spacing: 0;
+            font-family: Arial, sans-serif;
+            font-size: 10px;
+            color: #000;
+        }
+
+        #tblReport th,
+        #tblReport td {
+            border: 1px solid #000;
+            padding: 3px 4px;
+            text-align: center;
+            vertical-align: middle;
+            overflow-wrap: break-word;
+        }
+
+        #tblReport thead th {
+            background: #d1d1d1;
+            font-weight: bold;
+            white-space: normal;
+            line-height: 1.2;
+        }
+
+        #tblReport thead tr:first-child th {
+            height: 25px;
+        }
+
+        #tblReport thead tr:nth-child(2) th {
+            height: 45px;
+            font-weight: normal;
+        }
+
+        #tblReport tbody td {
+            height: 32px;
+            white-space: normal;
+        }
+
+        /* Độ rộng các cột thông tin cố định */
+        #tblReport tbody td:nth-child(1) {
+            width: 30px;
+        }
+
+        #tblReport tbody td:nth-child(2) {
+            width: 85px;
+        }
+
+        #tblReport tbody td:nth-child(3) {
+            width: 80px;
+        }
+
+        #tblReport tbody td:nth-child(4) {
+            width: 130px;
+        }
+
+        #tblReport tbody td:nth-child(5) {
+            width: 170px;
+            font-weight: bold;
+        }
+
+        #tblReport tbody td:nth-child(6) {
+            width: 55px;
+        }
+
+        #tblReport tbody td:nth-child(7) {
+            width: 85px;
+        }
+
+        #tblReport tbody td:nth-child(8) {
+            width: 140px;
+        }
+
+        #tblReport tbody td:nth-child(9) {
+            width: 65px;
+        }
+
+        #tblReport tbody td:nth-child(10) {
+            width: 270px;
+        }
+
+        #tblReport tbody td:nth-child(11),
+        #tblReport tbody td:nth-child(12) {
+            width: 100px;
+        }
+
+        #tblReport tbody td:nth-child(13) {
+            width: 100px;
+        }
+
+        /* Nền hồng cam cho các cột thông tin điểm bán */
+        #tblReport tbody td:nth-child(-n+13) {
+            background: #f5c5b5;
+        }
+
+        /* Nhóm ngày chẵn: màu hồng nhạt */
+        #tblReport tbody td:nth-child(n+14):nth-child(4n),
+        #tblReport tbody td:nth-child(n+14):nth-child(4n+1) {
+            background: #fce4d6;
+        }
+
+        /* Nhóm ngày lẻ: nền trắng */
+        #tblReport tbody td:nth-child(n+14):nth-child(4n+2),
+        #tblReport tbody td:nth-child(n+14):nth-child(4n+3) {
+            background: #fff;
+        }
+
+        /* Tổng vi phạm */
+        #tblReport thead tr:first-child th:last-child,
+        #tblReport tbody td:last-child {
+            background: #ffff00 !important;
+            font-weight: bold;
+            text-align: center;
+            width: 75px;
+        }
+
+        /* Tiêu đề ngày */
+        #tblReport thead tr:first-child th:nth-child(n+10):nth-child(odd) {
+            background: #fce4d6;
+        }
+
+        /* Tiêu đề Check-in / Check-out */
+        #tblReport thead tr:nth-child(2) th:nth-child(n+6):nth-child(4n),
+        #tblReport thead tr:nth-child(2) th:nth-child(n+6):nth-child(4n+1) {
+            background: #fce4d6;
+        }
+
+        #tblReport tbody tr:hover td {
+            color: darkblue;
+        }
+
+        /* Phần ghi chú */
+        .note-table {
+            margin-top: 18px;
+            border-collapse: collapse;
+            font-size: 11pt;
+            width: 600px;
+        }
+
+        .note-table th,
+        .note-table td {
+            border: 0;
+            padding: 4px 8px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .note-table th {
+            text-align: center;
+            min-width: 55px;
+        }
+
+        .report-date {
+            margin-top: 12px;
+            font-style: italic;
+            font-size: 10pt;
+        }
+
+        /* In báo cáo */
+        @page {
+            size: A3 landscape;
+            margin: 8mm;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            .toolbar {
+                display: none !important;
+            }
+
+            .report-container {
+                overflow: visible;
+                max-height: none;
+            }
+
+            #divReport {
+                width: 4100px;
+            }
+
+            #tblReport thead {
+                display: table-header-group;
+            }
+
+            #tblReport tr {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="toolbar">
+        <a class="export-button"
+           href="#"
+           onclick="exportExcel(); return false;">
+            📊 Kết xuất Excel
+        </a>
+
+        <a class="export-button"
+           href="#"
+           onclick="window.print(); return false;">
+            🖨️ In / Lưu PDF
+        </a>
+    </div>
+
+    <div id="divReport">
+
+        <!-- Phần logo, thông tin đơn vị và tiêu đề -->
+        <table class="report-title-table">
+            <colgroup>
+                <col style="width:480px">
+                <col style="width:3620px">
+            </colgroup>
+
+            <tr>
+                <td class="company-box">
+
+                    <div class="company-logo">
+                        <img
+                             src="https://demo.zilcode.com/media/3/13/7/orit.jpg"
+                            alt="ORIT Workforce">
+                    </div>
+
+                    <table class="company-info">
+                        <tr>
+                            <td class="info-label">Đơn vị Cung ứng</td>
+                            <td class="info-colon">:</td>
+                            <td>Công ty Cổ phần Đầu tư Orit</td>
+                        </tr>
+
+                        <tr>
+                            <td class="info-label">Khu vực</td>
+                            <td class="info-colon">:</td>
+                            <td>
+                                <span id="labThiTruong"></span>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td class="info-label">Giám đốc PTTT</td>
+                            <td class="info-colon">:</td>
+                            <td>
+                                <span id="labGDCN">Hoàng Anh Tuấn + Võ Tuấn Bằng</span>
+                            </td>
+                        </tr>
+                    </table>
+
+                </td>
+
+                <td class="report-title-box">
+                    <h1 id="reportTitle">
+                        CHECK - IN/OUT ĐIỂM BÁN THÁNG
+                        <span id="labThangNam"></span>
+                    </h1>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Bảng dữ liệu -->
+        <div class="report-container">
+
+            <table id="tblReport">
+
+                <thead id="tblHead">
+                    <!-- JavaScript sẽ tự sinh tiêu đề hai tầng -->
+                </thead>
+
+                <tbody id="tblData">
+                    <!-- JavaScript sẽ tự đổ dữ liệu -->
+                </tbody>
+
+            </table>
+
+        </div>
+
+        <p class="report-date">
+            <i id="labNgayBaoCao"></i>
+        </p>
+
+        <!-- Ghi chú theo mẫu Excel
+        <table class="note-table">
+
+            <tr>
+                <td colspan="3">
+                    <b><u style="color:red;font-size:14pt">Ghi chú:</u></b>
+                </td>
+            </tr>
+
+            <tr>
+                <th>x</th>
+                <td>:</td>
+                <td>làm ca thẳng, check điểm đầy đủ</td>
+            </tr>
+
+            <tr>
+                <th>xx</th>
+                <td>:</td>
+                <td>làm ca gãy, check điểm đầy đủ</td>
+            </tr>
+
+            <tr>
+                <th>0.5</th>
+                <td>:</td>
+                <td>làm ca gãy, 1 lần không check điểm</td>
+            </tr>
+
+            <tr>
+                <th>1</th>
+                <td>:</td>
+                <td>làm ca thẳng, 1 lần không check điểm</td>
+            </tr>
+
+        </table> -->
+
+    </div>
+
+    <script>
+        /* ===== Các hàm hỗ trợ cho xuất Excel ===== */
+
+        // Chuyển rgb()/rgba() sang #rrggbb để Excel đọc được
+        function toHex(color) {
+            var m = (color || "").match(/rgba?\(([^)]+)\)/);
+            if (!m) return color || "#000000";
+            var p = m[1].split(",").map(function (s) { return parseFloat(s); });
+            if (p.length === 4 && p[3] === 0) return "#ffffff";
+            return "#" + p.slice(0, 3).map(function (n) {
+                var h = Math.round(n).toString(16);
+                return h.length < 2 ? "0" + h : h;
+            }).join("");
+        }
+
+        function escHtml(s) {
+            return String(s == null ? "" : s)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
+
+        function textOf(id) {
+            var el = document.getElementById(id);
+            return el ? el.textContent.replace(/\s+/g, " ").trim() : "";
+        }
+
+        // Gán style trực tiếp (inline) cho ô, lấy theo màu/chữ đang hiển thị trên màn hình.
+        // Excel không hiểu nth-child, hover... nên phải "đóng cứng" style vào từng ô.
+        function styleCell(src, dst, isBody) {
+            var cs = window.getComputedStyle(src);
+            var st =
+                "background:" + toHex(cs.backgroundColor) + ";" +
+                "color:" + toHex(cs.color) + ";" +
+                "font-family:Arial,sans-serif;" +
+                "font-size:" + (parseFloat(cs.fontSize) * 0.75).toFixed(1) + "pt;" +
+                "font-weight:" + cs.fontWeight + ";" +
+                "font-style:" + cs.fontStyle + ";" +
+                "text-align:" + (cs.textAlign === "start" ? "center" : cs.textAlign) + ";" +
+                "vertical-align:middle;" +
+                "border:.5pt solid #000000;" +
+                "white-space:normal;word-wrap:break-word;";
+
+            // Giữ nguyên dạng chữ (không bị Excel đổi 0.5, 1221, 10 tổ 5... thành số/ngày)
+            if (isBody) st += 'mso-number-format:"\\@";';
+
+            dst.setAttribute("style", st);
+            dst.removeAttribute("class");
+            dst.removeAttribute("id");
+            dst.removeAttribute("width");
+            dst.removeAttribute("height");
+        }
+
+        // Nhân bản thead/tbody, đồng bộ style và chiều cao dòng
+        function cloneSection(section, isBody) {
+            var c = section.cloneNode(true);
+            var srcRows = section.rows;
+            var dstRows = c.rows;
+
+            for (var i = 0; i < srcRows.length; i++) {
+                dstRows[i].removeAttribute("id");
+                dstRows[i].removeAttribute("class");
+                dstRows[i].setAttribute("style", "height:" + srcRows[i].offsetHeight + "px;");
+
+                for (var j = 0; j < srcRows[i].cells.length; j++) {
+                    styleCell(srcRows[i].cells[j], dstRows[i].cells[j], isBody);
+                }
+            }
+            return c.innerHTML;
+        }
+
+        function exportExcel() {
+
+            var table = document.getElementById("tblReport");
+            var thead = table ? table.tHead : null;
+            var tbody = table ? table.tBodies[0] : null;
+
+            if (!table || !thead || !thead.rows.length) {
+                alert("Không tìm thấy dữ liệu báo cáo!");
+                return;
+            }
+
+            /* ---- Xác định số cột và độ rộng từng cột ---- */
+            var defaultWidths = [30, 85, 80, 130, 170, 55, 85, 140, 65, 270, 100, 100, 100];
+            var widths = [];
+            var totalCols = 0;
+
+            if (tbody && tbody.rows.length) {
+                var firstRow = tbody.rows[0];
+                totalCols = firstRow.cells.length;
+                for (var i = 0; i < totalCols; i++) {
+                    widths.push(firstRow.cells[i].offsetWidth);
+                }
+            } else {
+                var hr = thead.rows[0];
+                for (var k = 0; k < hr.cells.length; k++) {
+                    totalCols += hr.cells[k].colSpan || 1;
+                }
+                for (var n = 0; n < totalCols; n++) {
+                    widths.push(n < 13 ? defaultWidths[n] : (n === totalCols - 1 ? 75 : 42));
+                }
+            }
+
+            var LEFT_COLS = 5;                       // khối logo/đơn vị chiếm 5 cột đầu (STT → Họ tên NVTT)
+            var titleCols = Math.max(totalCols - LEFT_COLS, 1);
+
+            var colgroup = "<colgroup>";
+            widths.forEach(function (w) {
+                colgroup += '<col width="' + w + '" style="width:' + w + 'px">';
+            });
+            colgroup += "</colgroup>";
+
+            /* ---- Khối đầu báo cáo: logo + thông tin đơn vị + tiêu đề ---- */
+            var logoEl = document.querySelector(".company-logo img");
+            var logoSrc = logoEl ? logoEl.src : "";   // .src luôn là đường dẫn tuyệt đối
+
+            var titleText = textOf("reportTitle");
+
+            var infoFont =
+                "font-family:'Times New Roman',serif;font-size:12pt;font-weight:bold;" +
+                "color:#000000;text-align:left;vertical-align:middle;white-space:nowrap;";
+
+            var leftBorder = "border:none;border-right:1px solid #999999;";
+            var lastBorder = "border:none;border-right:1px solid #999999;border-bottom:1px solid #000000;";
+
+            var infoRows = [
+                ["Đơn vị Cung ứng", "Công ty Cổ phần Đầu tư Orit"],
+                ["Khu vực", textOf("labThiTruong")],
+                ["Giám đốc PTTT", textOf("labGDCN")]
+            ];
+
+            var top = "";
+
+            // Dòng 1: logo (bên trái) + tiêu đề đỏ (bên phải, gộp 4 dòng)
+            top +=
+                '<tr style="height:85px">' +
+                    '<td colspan="' + LEFT_COLS + '" style="' + leftBorder +
+                        'vertical-align:top;text-align:left;padding:5px;">' +
+                        (logoSrc ? '<img src="' + logoSrc + '" width="195" height="60">' : "") +
+                    '</td>' +
+                    '<td colspan="' + titleCols + '" rowspan="4" style="' +
+                        'border:none;border-bottom:1px solid #000000;' +
+                        'font-family:Arial,sans-serif;font-size:24pt;font-weight:bold;font-style:italic;' +
+                        'color:#ff0000;text-align:left;vertical-align:bottom;white-space:nowrap;">' +
+                        escHtml(titleText) +
+                    '</td>' +
+                '</tr>';
+
+            // Dòng 2-4: Đơn vị cung ứng / Khu vực / Giám đốc PTTT
+            infoRows.forEach(function (r, idx) {
+                var b = (idx === infoRows.length - 1) ? lastBorder : leftBorder;
+                top +=
+                    '<tr style="height:30px">' +
+                        '<td colspan="3" style="' + infoFont + 'border:none;' +
+                            (idx === infoRows.length - 1 ? 'border-bottom:1px solid #000000;' : '') + '">' +
+                            escHtml(r[0]) +
+                        '</td>' +
+                        '<td colspan="2" style="' + infoFont + b + '">: ' + escHtml(r[1]) + '</td>' +
+                    '</tr>';
+            });
+
+            /* ---- Bảng dữ liệu (tiêu đề + nội dung) ---- */
+            var headHtml = cloneSection(thead, false);
+            var bodyHtml = tbody ? cloneSection(tbody, true) : "";
+
+            /* ---- Phần chân: ngày báo cáo + ghi chú ---- */
+            var noteStyle = "border:none;font-family:Arial,sans-serif;font-size:11pt;color:#000000;vertical-align:middle;";
+            var bottom = "";
+
+            bottom += '<tr><td colspan="' + totalCols + '" style="border:none;height:12px"></td></tr>';
+
+            bottom +=
+                '<tr><td colspan="' + totalCols + '" style="' + noteStyle +
+                'font-style:italic;font-size:10pt;text-align:left;">' +
+                escHtml(textOf("labNgayBaoCao")) + '</td></tr>';
+
+            bottom += '<tr><td colspan="' + totalCols + '" style="border:none;height:12px"></td></tr>';
+
+            // Ghi chú theo mẫu của khách hàng: "Ghi chú:" đỏ, gạch chân bên trái,
+            // các ký hiệu và diễn giải in đậm bên phải.
+            var noteCell = noteStyle + "font-weight:bold;font-size:10pt;";
+
+            [
+                ["x", "làm ca thẳng, check điểm đầy đủ"],
+                ["xx", "làm ca gãy, check điểm đầy đủ"],
+                ["0.5", "làm ca gãy, 1 lần không check điểm"],
+                ["1", "làm ca thẳng, 1 lần không check điểm"]
+            ].forEach(function (n, i) {
+                bottom +=
+                    '<tr>' +
+                        (i === 0
+                            ? '<td colspan="2" rowspan="4" style="' + noteStyle +
+                              'font-size:14pt;font-weight:bold;color:#ff0000;' +
+                              'text-decoration:underline;text-align:left;vertical-align:top;">' +
+                              'Ghi chú:</td>'
+                            : '') +
+                        '<td style="' + noteCell + 'text-align:center;' +
+                            'mso-number-format:\'\\@\';">' + escHtml(n[0]) + '</td>' +
+                        '<td colspan="6" style="' + noteCell + 'text-align:left;">: ' +
+                            escHtml(n[1]) + '</td>' +
+                    '</tr>';
+            });
+
+            /* ---- Ghép thành file Excel (HTML) ---- */
+            var html =
+                '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+                'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+                'xmlns="http://www.w3.org/TR/REC-html40">' +
+
+                '<head>' +
+                '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
+
+                '<!--[if gte mso 9]>' +
+                '<xml>' +
+                    '<x:ExcelWorkbook>' +
+                        '<x:ExcelWorksheets>' +
+                            '<x:ExcelWorksheet>' +
+                                '<x:Name>CheckInOut</x:Name>' +
+                                '<x:WorksheetOptions>' +
+                                    '<x:DoNotDisplayGridlines/>' +
+                                    '<x:FitToPage/>' +
+                                    '<x:Print>' +
+                                        '<x:FitWidth>1</x:FitWidth>' +
+                                        '<x:FitHeight>0</x:FitHeight>' +
+                                        '<x:ValidPrinterInfo/>' +
+                                        '<x:PaperSizeIndex>8</x:PaperSizeIndex>' +
+                                    '</x:Print>' +
+                                '</x:WorksheetOptions>' +
+                            '</x:ExcelWorksheet>' +
+                        '</x:ExcelWorksheets>' +
+                    '</x:ExcelWorkbook>' +
+                '</xml>' +
+                '<![endif]-->' +
+
+                '<style>' +
+                    'body{font-family:Arial,sans-serif;font-size:10pt;}' +
+                    'table{border-collapse:collapse;table-layout:fixed;}' +
+                    '@page{size:29.7cm 42cm;mso-page-orientation:landscape;margin:0.5cm;}' +
+                '</style>' +
+
+                '</head>' +
+
+                '<body>' +
+                    '<table border="0" cellpadding="0" cellspacing="0" ' +
+                        'style="border-collapse:collapse;table-layout:fixed;">' +
+                        colgroup +
+                        top +
+                        headHtml +
+                        bodyHtml +
+                        bottom +
+                    '</table>' +
+                '</body>' +
+                '</html>';
+
+            var blob = new Blob(
+                ["\ufeff", html],
+                { type: "application/vnd.ms-excel;charset=utf-8;" }
+            );
+
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement("a");
+
+            link.href = url;
+            link.download = "DailyCheckInOut.xls";
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setTimeout(function () {
+                URL.revokeObjectURL(url);
+            }, 1500);
+        }
+    </script>
+
+</body>
+</html>

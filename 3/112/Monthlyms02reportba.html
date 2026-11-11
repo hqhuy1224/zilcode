@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<title>Bảng tổng hợp chấm công tháng</title>
+<style>
+	@page { size: A3 landscape; margin: 8mm; }
+	* { box-sizing: border-box; }
+	body { font-family: "Times New Roman", Times, serif; font-size: 12px; color: #000; margin: 10px; }
+	.no-print { position: fixed; top: 8px; right: 8px; z-index: 9; }
+	.no-print button { padding: 6px 14px; font-size: 13px; cursor: pointer; }
+	@media print { .no-print { display: none; } body { margin: 0; } }
+
+	/* Header */
+	.top { position: relative; height: 70px; }
+	.logo-l, .logo-r { position: absolute; top: 0; height: 60px; display: flex; align-items: center; font-weight: bold; }
+	.logo-l { left: 0; color: #c8102e; font-size: 26px; }
+	.logo-r { right: 0; color: #1a7f3c; font-size: 26px; }
+	.logo-l img, .logo-r img { max-height: 60px; }
+	.title { text-align: center; line-height: 1.5; margin-bottom: 6px; }
+	.title .t1 { font-size: 20px; font-weight: bold; }
+	.title .t2, .title .t3 { font-size: 16px; font-weight: bold; }
+	.donvi { font-weight: bold; margin: 4px 0; font-size: 13px; }
+	.donvi span { display: inline-block; }
+	.donvi .lb { width: 160px; }
+
+	/* Table */
+	table.rpt { border-collapse: collapse; width: 100%; }
+	table.rpt th, table.rpt td { border: 1px solid #000; padding: 2px 3px; text-align: center; vertical-align: middle; font-size: 11px; }
+	table.rpt th { font-weight: bold; background: #fff; }
+	table.rpt td.l { text-align: left; }
+	table.rpt tbody tr { height: 26px; }
+	.d { width: 22px; min-width: 22px; }
+	.sun { background: #e6e6e6; }
+	.hol { background: #ffccff; }
+	.na { background: #bfbfbf; }
+	.code { font-weight: bold; color: #c00000; }
+	.yellow { background: #ffff00 !important; font-weight: bold; }
+	.green { background: #eefaf0; }
+	.red { color: #c00000; }
+	.sumrow td { font-weight: bold; height: 30px; }
+	.sumrow td.lbl { text-align: right; font-size: 15px; padding-right: 10px; }
+
+	/* Footer */
+	.ghichu { margin: 14px 0 0 150px; font-size: 11px; line-height: 1.7; }
+	.ghichu u { font-weight: bold; }
+	.ghichu table td { padding: 0 6px 0 0; border: 0; text-align: left; vertical-align: top; font-size: 11px; }
+	.ghichu .k { color: #c00000; font-weight: bold; white-space: nowrap; }
+	.ghichu .r { color: #c00000; }
+	.ngaythang { text-align: right; font-style: italic; font-size: 14px; margin: 6px 40px 0 0; }
+	.ky { display: flex; justify-content: space-between; margin: 6px 20px 0 20px; }
+	.ky div { text-align: center; min-width: 300px; }
+	.ky b { font-size: 14px; text-transform: uppercase; }
+	.ky i { display: block; font-size: 11px; margin-top: 2px; }
+	.ky .sp { height: 90px; }
+</style>
+</head>
+<body>
+
+<div class="no-print"><button onclick="window.print()">🖨 In / Xuất PDF</button></div>
+
+<div class="top">
+	<div class="logo-l"><img src="https://demo.zilcode.com/media/3/13/7/orit.jpg" alt="ORIT WORKFORCE" onerror="this.outerHTML='ORIT WORKFORCE'"/></div>
+	<div class="logo-r"><img src="img/habeco.png" alt="HABECO" onerror="this.outerHTML='HABECO'"/></div>
+</div>
+
+<div class="title">
+	<div class="t1">BẢNG TỔNG HỢP CHẤM CÔNG THÁNG</div>
+	<div class="t2" id="labThangNam">THÁNG ... NĂM ...</div>
+	<div class="t3">Khu vực: <span id="labThiTruong"></span></div>
+</div>
+
+<div class="donvi"><span class="lb">Đơn vị Cung ứng</span><span>: Công ty Cổ phần Đầu tư Orit</span></div>
+
+<table class="rpt" id="tblData">
+	<thead>
+		<tr>
+			<th rowspan="2" style="width:30px">STT</th>
+			<th rowspan="2" style="width:60px">Tỉnh/<br/>Thành<br/>(cũ)</th>
+			<th rowspan="2" style="width:80px">TL/TF</th>
+			<th rowspan="2" style="width:150px">Họ và tên NVTT</th>
+			<th rowspan="2" style="width:60px">Loại hình điểm bán</th>
+			<th colspan="4">Địa chỉ làm việc của NVTT</th>
+			<th colspan="31">Ngày công</th>
+			<th rowspan="2" style="width:45px">Ngày công thực tế</th>
+			<th rowspan="2" style="width:45px">Ngày công quy trừ</th>
+			<th rowspan="2" class="yellow" style="width:50px">Tổng Ngày công</th>
+			<th colspan="7" class="red">Loại Ngày công</th>
+			<th rowspan="2" style="width:80px">TL/TF kí xác nhận</th>
+		</tr>
+		<tr>
+			<th style="width:110px">Tên Nhà hàng</th>
+			<th style="width:45px">Số nhà</th>
+			<th style="width:110px">Đường (tổ, xóm, ...)</th>
+			<th style="width:90px">Xã/Phường</th>
+			<script>for(var i=1;i<=31;i++)document.write('<th class="d" id="thd'+i+'">'+(i<10?'0':'')+i+'</th>');</script>
+			<th class="red" style="width:28px">KL</th>
+			<th class="red" style="width:28px">KLO</th>
+			<th class="red" style="width:28px">N</th>
+			<th class="red" style="width:28px">NL</th>
+			<th class="red" style="width:28px">S</th>
+			<th class="red" style="width:28px">E</th>
+			<th class="red" style="width:34px">KPI</th>
+		</tr>
+	</thead>
+	<tbody id="tbdData"></tbody>
+</table>
+
+<div class="ghichu">
+	<u>Ghi chú</u>
+	<table>
+		<tr><td>1 Ngày công làm việc:</td><td class="k">: 1</td><td style="width:60px"></td><td>Nghỉ lễ, Tết:</td><td class="k">: NL</td></tr>
+		<tr><td>1/2 ngày công làm việc:</td><td class="k">: 0.5</td><td></td><td>Ngày điểm bán chưa hoạt động:</td><td class="k">: E</td></tr>
+		<tr><td>Ngày nghỉ theo quy định:</td><td class="k">: N</td><td></td><td>Ngày điểm bán dừng hoạt động:</td><td><span class="k">: S</span> <span class="r">(do Habeco yêu cầu hoặc điểm bán sửa chữa, yêu cầu thay thế NVTT,...đối với nội dung này, yêu cầu phải có giấy xác nhận gửi kèm Bảng chấm công)</span></td></tr>
+		<tr><td>Ngày nghỉ có lý do (ốm,...)</td><td class="k" colspan="4">: KL <span class="r" style="font-weight:normal">(yêu cầu phải có thông báo qua mail của NCƯ, trường hợp không có thông báo coi như nghỉ không lý do)</span></td></tr>
+		<tr><td>Ngày nghỉ không lý do</td><td class="k" colspan="4">: KLO</td></tr>
+	</table>
+</div>
+
+<div class="ngaythang" id="labNgayThang">Hà Nội, ngày........tháng........năm ....</div>
+
+<div class="ky">
+	<div><b>Người lập báo cáo của nhà cung ứng</b><i>(ký, ghi rõ họ tên)</i><div class="sp"></div></div>
+	<div><b>Đại diện nhà cung ứng</b><i>(ký, ghi rõ họ tên, đóng dấu)</i><div class="sp"></div></div>
+	<div><b>Chuyên viên đào tạo và quản lý đại sứ thương hiệu</b><i>(ký, ghi rõ họ tên)</i><div class="sp"></div></div>
+</div>
+
+</body>
+</html>

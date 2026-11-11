@@ -1,0 +1,109 @@
+<!DOCTYPE HTML>
+<html class="nut-full">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+	<style>
+		th{
+			background:whitesmoke;
+		}
+		.frozen{
+			position:sticky;
+			z-index:999;
+			left:0;
+			width:160px;
+			background:whitesmoke;
+		}
+		.frozen2{
+			position:sticky;
+			z-index:999;
+			left:164px;
+			background:whitesmoke;
+		}
+		tr:hover{
+		  color: darkblue;
+		  background: lightcyan;
+		}
+	</style>
+</head>
+<body style="font-size:10pt">
+	<a style="float:right;border:1px solid;padding:6px 10px 6px 10px" download="PL03_01.xls" onclick="if(!this.href)this.href='data:application/vnd.ms-excel,'+body.innerHTML">Kết xuất Excel</a>
+	<center>
+		<h2>
+			DANH SÁCH THÔNG TIN THỬA ĐẤT Ở ĐÃ ĐƯỢC CẤP GIẤY CHỨNG NHẬN QUYỀN SỬ DỤNG ĐẤT, SỞ HỮU TÀI SẢN KHÁC GẮN LIỀN VỚI ĐẤT NHƯNG CHƯA XÂY DỰNG CƠ SỞ DỮ LIỆU<br />
+			(Kế hoạch số 515/KH-BCA-BNNMT triển khai thực hiện chiến dịch làm giàu, làm sạch cơ sở dữ liệu quốc gia về đất đai)
+		</h2>
+	</center>
+	<table id="tblData" border="1px" cellspacing="0px" style="width:4000px;margin:auto">
+		<caption align="right"><b><i>Mẫu PL03-01</i></b></caption>
+		<tr>
+			<th rowspan="3">STT</th>
+			<th rowspan="3">Mã ĐVHC cấp xã</th>
+			<th colspan="3">Thông tin về giấy chứng nhận quyền sử dụng đất, quyền sở hữu tài sản gắn liền với đất</th>
+			<th colspan="2">Thông tin về tổ chức sử dụng đất</th>
+			<th colspan="7">Thông tin về chủ sử dụng/người đại diện theo pháp luật của tổ chức</th>
+			<th colspan="4">Thông tin người sử dụng đất hiện tại (trường hợp không phải là chủ sử dụng pháp lý)</th>
+			<th colspan="22">Thông tin thửa đất</th>
+			<th colspan="9">Thông tin nhà ở</th>
+			<th>Thông tin HSQ</th>
+		</tr>
+		<tr>
+			<th rowspan="2">Số phát hành GCN</th>
+			<th rowspan="2">Ngày cấp GCN</th>
+			<th rowspan="2">Số vào sổ GCN</th>
+			<th rowspan="2">Tên tổ chức</th>
+			<th rowspan="2">Số định danh tổ chức</th>
+			<th rowspan="2">Họ và tên chủ sử dụng/ Họ tên người đại diện tổ chức</th>
+			<th rowspan="2">Ngày, tháng, năm sinh</th>
+			<th rowspan="2">Giới tính</th>
+			<th rowspan="2">Số định danh cá nhân/CCCD</th>
+			<th rowspan="2">Địa chỉ thường trú</th>
+			<th rowspan="2">Pháp nhân trên GCN</th>
+			<th rowspan="2">Vai trò pháp nhân trên GCN</th>
+			<th rowspan="2">Tên người sử dụng hiện tại</th>
+			<th rowspan="2">Số định danh cá nhân (CCCD)</th>
+			<th rowspan="2">Địa chỉ thường trú (2 cấp)</th>
+			<th rowspan="2">Lý do thay đổi (thừa kế, tặng cho, chuyển nhượng...)</th>
+
+			<th rowspan="2">Mã định danh thửa đất</th>
+			<th rowspan="2">Số tờ bản đồ ghi trên GCN</th>
+			<th rowspan="2">Số thứ tự thửa đất ghi trên GCN</th>
+			<th rowspan="2">Số hiệu tờ trên bản đồ địa chính</th>
+			<th rowspan="2">Số thứ tự thửa trên bản đồ địa chính</th>
+			<th rowspan="2">Địa chỉ thửa đất</th>
+			<th rowspan="2">Diện tích thửa đất</th>
+			<th colspan="5">Loại đất 1 ( Mục đích sử dụng )</th>
+			<th colspan="5">Loại đất 2 ( Mục đích sử dụng )</th>
+			<th colspan="5">Loại đất 3 ( Mục đích sử dụng )</th>
+			<th rowspan="2">Loại tài sản gắn liền với đất</th>
+			<th rowspan="2">Khu nhà chung cư, nhà hỗn hợp</th>
+			<th rowspan="2">Nhà chung cư</th>
+			<th rowspan="2">Số căn hộ</th>
+			<th rowspan="2">Diện tích xây dựng</th>
+			<th rowspan="2">Diện tích sàn</th>
+			<th rowspan="2">Hình thức sở hữu</th>
+			<th rowspan="2">Thời hạn sở hữu</th>
+			<th rowspan="2">Cấp hạng</th>
+			<th rowspan="2">Tên file quét GCN/CCCD</th>
+		</tr>
+		<tr>
+			<th>Loại đất</th>
+			<th>Diện tích</th>
+			<th>Nguồn gốc sử dụng</th>
+			<th>Hình thức sử dụng</th>
+			<th>Thời hạn sử dụng</th>
+			<th>Loại đất</th>
+			<th>Diện tích</th>
+			<th>Nguồn gốc sử dụng</th>
+			<th>Hình thức sử dụng</th>
+			<th>Thời hạn sử dụng</th>
+			<th>Loại đất</th>
+			<th>Diện tích</th>
+			<th>Nguồn gốc sử dụng</th>
+			<th>Hình thức sử dụng</th>
+			<th>Thời hạn sử dụng</th>
+		</tr>
+	</table><br />
+	<i id="labNgayBaoCao"></i>
+</body>
+</html>

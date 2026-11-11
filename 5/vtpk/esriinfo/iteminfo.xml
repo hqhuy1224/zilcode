@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ESRI_ItemInformation Culture='en-US'>
+<name>vm</name>
+<guid>251AEF37-D148-4E60-AC57-781EDEA9E7B8</guid>
+<version>1.0</version>
+<created></created>
+<modified></modified>
+<catalogpath></catalogpath>
+<snippet>bachmai</snippet>
+<description>&lt;DIV STYLE=&quot;text-align:Left;font-size:12pt&quot;&gt;&lt;P&gt;&lt;SPAN&gt;bachmai&lt;/SPAN&gt;&lt;/P&gt;&lt;/DIV&gt;</description>
+<summary>bachmai</summary>
+<title>Map</title>
+<tags>keyword</tags>
+<type>Vector Tile Package</type>
+<typekeywords>
+<typekeyword>Data</typekeyword>
+<typekeyword>Vector Tile Package</typekeyword>
+<typekeyword>vtpk</typekeyword>
+</typekeywords>
+<thumbnail>thumbnail/thumbnail.png</thumbnail>
+<documentation></documentation>
+<url></url>
+<extent>
+<xmin>105.827775805103</xmin>
+<ymin>21.0069322041571</ymin>
+<xmax>105.844236659271</xmax>
+<ymax>21.0317279813982</ymax>
+</extent>
+<spatialreference>VN_2000_TM-3_zone_482</spatialreference>
+<minScale>1153531.5267521257</minScale>
+<maxScale>35.202988487308524</maxScale>
+<datalastModifiedTime></datalastModifiedTime>
+<accessinformation></accessinformation>
+<licenseinfo></licenseinfo>
+</ESRI_ItemInformation>

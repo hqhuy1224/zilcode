@@ -1,0 +1,457 @@
+var DailyCheckInoutReport = {
+    url: "",
+
+    run: function () {
+        var now = new Date();
+        DailyCheckInoutReport.url = NUT.services[3].url;
+
+        NUT.w2popup.open({
+            title: "📜 Daily Check In-out Report",
+            modal: true,
+            width: 380,
+            height: 230,
+
+            body:
+                "<table style='margin:auto'>" +
+                "<tr>" +
+                    "<td>Năm</td>" +
+                    "<td><input id='num_Year' type='number' " +
+                    "style='width:75px' value='" + now.getFullYear() + "'></td>" +
+                    "<td>Tháng</td>" +
+                    "<td><input id='num_Month' type='number' min='1' max='12' " +
+                    "style='width:55px' value='" + (now.getMonth() + 1) + "'></td>" +
+                "</tr>" +
+                "<tr>" +
+                    "<td>Thị trường</td>" +
+                    "<td colspan='3'>" +
+                        NUT.outerCboHTML(
+                            NUT.domains[1201].items,
+                            "cbo_ThiTruong"
+                        ) +
+                    "</td>" +
+                "</tr>" +
+                "<tr>" +
+                    "<td>Vị trí</td>" +
+                    "<td colspan='3'>" +
+                        "<select id='cbo_ViTri' name='cbo_ViTri'>" +
+                            "<option value='' selected>-- Tất cả --</option>" +
+                            "<option value='BA'>BA</option>" +
+                            "<option value='BA_PT'>BA_PT</option>" +
+                        "</select>" +
+                    "</td>" +
+                "</tr>" +
+                "<tr>" +
+                    "<td colspan='4'>" +
+                        "<input id='chk_Edit' type='checkbox'>" +
+                        "<label for='chk_Edit'>Dùng dữ liệu hiệu chỉnh</label>" +
+                    "</td>" +
+                "</tr>" +
+                "</table>",
+
+            buttons:
+                "<button class='w2ui-btn' " +
+                "onclick='NUT.w2popup.close()'>Đóng</button>" +
+                "<button class='w2ui-btn' " +
+                "onclick='DailyCheckInoutReport.runReport()'>✔️ Xuất báo cáo</button>"
+        });
+    },
+
+    runReport: function () {
+        var nam = Number(document.getElementById("num_Year").value);
+        var thang = Number(document.getElementById("num_Month").value);
+
+        if (!nam || !thang || thang < 1 || thang > 12) {
+            NUT.notify("Nhập năm và tháng hợp lệ!", "yellow");
+            return;
+        }
+
+        var cbo = document.getElementById("cbo_ThiTruong");
+        var thiTruong = cbo ? cbo.value : "";
+
+        // Tên hiển thị của thị trường đang chọn (dùng cho dòng "Khu vực" trên báo cáo)
+        var thiTruongText = "";
+        if (cbo && cbo.options && cbo.selectedIndex >= 0 && thiTruong) {
+            thiTruongText = cbo.options[cbo.selectedIndex].text;
+        }
+
+        var dungDuLieuHieuChinh =
+            document.getElementById("chk_Edit").checked;
+        var cboViTri = document.getElementById("cbo_ViTri");
+        var viTri = cboViTri ? cboViTri.value : "";
+
+        var where = [
+            ["nam", "=", nam],
+            ["thang", "=", thang],
+            ["dulieu", "=", dungDuLieuHieuChinh ? 1 : 0],
+           // ["vitri", "=", document.getElementById("cbo_ViTri").value || ""]
+        ];
+
+        if (viTri) {
+            where.push(["vitri", "=", viTri]);
+        }
+
+        NUT.ds.select({
+            url: DailyCheckInoutReport.url + "data/chamcong_v",
+            where: where,
+            orderby: "manhanvien,madiemban,ngay,lan",
+            limit: 20000
+        }, function (res) {
+            // if (!res.success || !res.result || !res.result.length) {
+            //     NUT.notify("Không có dữ liệu báo cáo!", "yellow");
+            //     return;
+            // }
+            if(!(res.success&&res.result.length)){
+				NUT.alert("No data to report!","yellow");
+				return;
+			}
+
+            var data = res.result;
+
+            // Lọc thị trường tại JavaScript
+            if (thiTruong) {
+                data = data.filter(function (rec) {
+                    return String(rec.thitruong || "").trim() ===
+                        String(thiTruong).trim();
+                });
+
+                if (!data.length) {
+                    NUT.notify("Không có dữ liệu báo cáo!", "yellow");
+                    return;
+                }
+            }
+
+            DailyCheckInoutReport.renderReport(
+                data,
+                nam,
+                thang,
+                thiTruong,
+                thiTruongText
+            );
+        });
+    },
+
+    renderReport: function (data, nam, thang, thiTruong, thiTruongText) {
+        var win = window.open(
+            "site/" + n$.user.siteid + "/" +
+            n$.app.appid + "/DailyCheckInoutReport.html"
+        );
+
+        if (!win) {
+            NUT.notify("Trình duyệt đã chặn cửa sổ báo cáo!", "yellow");
+            return;
+        }
+
+        win.onload = function () {
+            var doc = win.document;
+            var head = doc.getElementById("tblHead");
+            var body = doc.getElementById("tblData");
+
+            if (!head || !body) {
+                NUT.notify("Thiếu tblHead hoặc tblData trong HTML!", "yellow");
+                return;
+            }
+
+            var soNgay = new Date(nam, thang, 0).getDate();
+
+            doc.getElementById("labThangNam").textContent =
+                String(thang).padStart(2, "0") + "/" + nam;
+
+            doc.getElementById("labThiTruong").textContent =
+                thiTruongText || thiTruong || "Tất cả";
+
+            doc.getElementById("labNgayBaoCao").textContent =
+                "Ngày báo cáo: " + new Date().toLocaleString("vi-VN");
+
+
+            var fixedBefore = [
+                "STT",
+                "Mã điểm bán (DMS)",
+                "Chi nhánh",
+                "TL/TF",
+                "Họ và tên NVTT",
+                "Mã nhân viên",
+                "Loại hình điểm bán"
+            ];
+
+            var addressCols = [
+                "Tên Nhà hàng",
+                "Số nhà",
+                "Đường (tổ, xóm, ...)",
+                "Xã/ Phường",
+                "Tỉnh/ Thành (cũ)"
+            ];
+
+            head.innerHTML = "";
+
+            var tr1 = doc.createElement("tr");
+            var tr2 = doc.createElement("tr");
+
+            function addTh(tr, text, rowSpan, colSpan) {
+                var th = doc.createElement("th");
+                th.textContent = text;
+                if (rowSpan) th.rowSpan = rowSpan;
+                if (colSpan) th.colSpan = colSpan;
+                tr.appendChild(th);
+                return th;
+            }
+
+            fixedBefore.forEach(function (label) {
+                addTh(tr1, label, 2, 1);
+            });
+
+            addTh(tr1, "Địa chỉ làm việc của NVTT", 1, addressCols.length);
+            addressCols.forEach(function (label) {
+                addTh(tr2, label, 1, 1);
+            });
+
+            addTh(tr1, "Giờ làm việc", 2, 1);
+
+            for (var d = 1; d <= soNgay; d++) {
+                addTh(tr1, String(d).padStart(2, "0"), 1, 2);
+                addTh(tr2, "Check in", 1, 1);
+                addTh(tr2, "Check out", 1, 1);
+            }
+
+            addTh(tr1, "Tổng vi phạm", 2, 1);
+
+            head.appendChild(tr1);
+            head.appendChild(tr2);
+            body.innerHTML = "";
+
+            /* ================= HÀM HỖ TRỢ ================= */
+
+            // Chỉ hiển thị HH:mm nếu có dữ liệu.
+            function formatTime(value) {
+                if (value === null || value === undefined || value === "") {
+                    return "";
+                }
+
+                var s = String(value);
+                var match = s.match(/(\d{1,2}:\d{2})/);
+
+                return match ? match[1] : s;
+            }
+
+            function hasValue(value) {
+                return value !== null &&
+                    value !== undefined &&
+                    value !== "";
+            }
+
+            // 0.5 -> "0.5", 1 -> "1", 1.0 -> "1"
+            function formatNumber(n) {
+                return String(Number(n.toFixed(2)));
+            }
+
+            /* ================= GOM DỮ LIỆU =================
+               Mỗi dòng báo cáo = một điểm bán của một NVTT
+               (nhân viên + điểm bán), các ngày nằm ngang theo cột.
+            */
+            var groups = Object.create(null);
+
+            // Thống kê theo nhân viên + ngày để xác định ca thẳng / ca gãy:
+            // - Ca thẳng: trong ngày chỉ làm ở một điểm bán (1 bản ghi check in/out).
+            // - Ca gãy  : trong ngày làm từ 2 điểm bán trở lên (mỗi ca là một bản ghi mới),
+            //             hoặc có bản ghi lan >= 2.
+           // var nvDays = Object.create(null);
+
+            data.forEach(function (rec) {
+                var key = JSON.stringify([rec.manhanvien, rec.madiemban]);
+
+                var group = groups[key];
+                if (!group) {
+                    group = groups[key] = {
+                        info: rec,
+                        days: Object.create(null)
+                    };
+                }
+
+                var day = Number(rec.ngay);
+                if (!day || day < 1 || day > soNgay) return;
+
+                // var dayData = group.days[day];
+                // if (!dayData) {
+                //     dayData = group.days[day] = {
+                //         ins: 0,           // số bản ghi có check in
+                //         outs: 0,          // số bản ghi có check out
+                //         inTimes: [],      // giờ check in (hiện khi rê chuột)
+                //         outTimes: []      // giờ check out
+                //     };
+                // }
+                var dayData = group.days[day];
+
+                if (!dayData) {
+                    dayData = group.days[day] = {
+                        records: []
+                    };
+                }
+
+                // Lưu nguyên bản ghi gốc, không làm mất lần chấm công
+                dayData.records.push(rec);
+
+                // var nvKey = rec.manhanvien + "|" + day;
+                // var nv = nvDays[nvKey];
+                // if (!nv) {
+                //     nv = nvDays[nvKey] = {
+                //         points: Object.create(null),
+                //         maxLan: 0
+                //     };
+                // }
+
+                // nv.points[rec.madiemban] = true;
+                // nv.maxLan = Math.max(nv.maxLan, Number(rec.lan) || 0);
+            });
+
+            // function isCaGay(manv, day) {
+            //     var nv = nvDays[manv + "|" + day];
+
+            //     return !!nv &&
+            //         (Object.keys(nv.points).length >= 2 || nv.maxLan >= 2);
+            // }
+
+            var keys = Object.keys(groups).sort(function (a, b) {
+                var x = groups[a].info;
+                var y = groups[b].info;
+
+                return String(x.manhanvien || "").localeCompare(
+                    String(y.manhanvien || "")
+                ) || String(x.madiemban || "").localeCompare(
+                    String(y.madiemban || "")
+                );
+            });
+
+            /* ================= ĐỔ DỮ LIỆU ================= */
+            keys.forEach(function (key, index) {
+                var group = groups[key];
+                var rec = group.info;
+                var row = doc.createElement("tr");
+                var violations = 0;
+
+                function addCell(value, align) {
+                    var td = doc.createElement("td");
+                    td.textContent =
+                        value === null || value === undefined
+                            ? ""
+                            : String(value);
+
+                    if (align) td.style.textAlign = align;
+
+                    row.appendChild(td);
+                    return td;
+                }
+
+                // TL/TF: ưu tiên tên quản lý, nếu trống thì lấy chức vụ.
+                var tlTf = rec.hotenquanly || rec.machucvu || "";
+
+                // Giờ làm việc: ca 1 và (nếu có) ca 2.
+                var ca1 = formatTime(rec.gioden) +
+                    (rec.giove ? " - " + formatTime(rec.giove) : "");
+                var ca2 = formatTime(rec.gioden2) +
+                    (rec.giove2 ? " - " + formatTime(rec.giove2) : "");
+                var gioLamViec = ca2 ? ca1 + ", " + ca2 : ca1;
+
+                addCell(index + 1, "center");        // 1  STT
+                addCell(rec.madiemban);              // 2  Mã điểm bán (DMS)
+                addCell(rec.thitruong);              // 3  Chi nhánh
+                addCell(tlTf);                       // 4  TL/TF
+                addCell(rec.hotenNVTT);              // 5  Họ và tên NVTT
+                addCell(rec.manhanvien, "center");   // 6  Mã nhân viên
+                addCell(rec.loaihinh);               // 7  Loại hình điểm bán
+                addCell(rec.tendiemban);             // 8  Tên Nhà hàng
+                addCell(rec.sonha);                  // 9  Số nhà
+                addCell(rec.duong);                  // 10 Đường
+                addCell(rec.huyen);                  // 11 Xã/Phường
+                addCell(rec.tenkhuvuc);              // 12 Tỉnh/Thành (cũ)
+                addCell(gioLamViec, "center");       // 13 Giờ làm việc
+
+                /* Ký hiệu chấm công (theo mẫu Excel của khách hàng):
+                   x   : ca thẳng, check điểm đầy đủ
+                   xx  : ca gãy,   check điểm đầy đủ
+                   1   : ca thẳng, một lần không check điểm
+                   0.5 : ca gãy,   một lần không check điểm
+                   Ô trống: ngày không có bản ghi chấm công ở điểm bán này.
+                   Rê chuột vào ô x/xx để xem giờ chấm.
+                */
+                for (var day = 1; day <= soNgay; day++) {
+
+                    var info = group.days[day];
+
+                    if (!info || !info.records.length) {
+                        addCell("", "center");
+                        addCell("", "center");
+                        continue;
+                    }
+
+                    var checkIn = [];
+                    var checkOut = [];
+
+                    var inTimes = [];
+                    var outTimes = [];
+
+                    info.records.forEach(function (rec) {
+
+                        // Quy tắc HABECO:
+                        // lan = 2  -> xx
+                        // lan khác -> x
+                        var kyHieu = Number(rec.lan) === 2 ? "xx" : "x";
+
+                        if (rec.chamcong) {
+
+                            checkIn.push(rec.chamcong);
+                            checkOut.push(rec.chamcong);
+
+                        } else {
+
+                            if (hasValue(rec.thoigianden)) {
+
+                                checkIn.push(kyHieu);
+                                inTimes.push(formatTime(rec.thoigianden));
+
+                            }
+
+                            if (hasValue(rec.thoigianve)) {
+
+                                checkOut.push(kyHieu);
+                                outTimes.push(formatTime(rec.thoigianve));
+
+                            }
+
+                        }
+
+                        // Một bản ghi thiếu giờ đến hoặc giờ về
+                        // được tính một vi phạm.
+                        if (
+                            !rec.chamcong &&
+                            (
+                                !hasValue(rec.thoigianden) ||
+                                !hasValue(rec.thoigianve)
+                            )
+                        ) {
+                            violations++;
+                        }
+
+                    });
+
+                    // Check-in
+                    var tdIn = addCell(
+                        checkIn.join(""),
+                        "center"
+                    );
+
+                    tdIn.title = inTimes.join("");
+
+                    // Check-out
+                    var tdOut = addCell(
+                        checkOut.join(""),
+                        "center"
+                    );
+
+                    tdOut.title = outTimes.join("");
+                }
+        
+                addCell(formatNumber(violations), "center");   // Tổng vi phạm
+                body.appendChild(row);
+            });
+        };
+    }
+};
