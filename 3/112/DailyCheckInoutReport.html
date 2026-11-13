@@ -323,7 +323,52 @@
                 page-break-inside: avoid;
             }
         }
+        @media screen {
+            #divReport { width: 100%; }
+            /* Only the data table scrolls horizontally; the report heading fits the page. */
+            .report-title-table { display: block; width: 100%; }
+            .report-title-table > colgroup { display: none; }
+            .report-title-table > tbody { display: block; }
+            .report-title-table > tbody > tr {
+                display: grid;
+                grid-template-columns: minmax(300px, 480px) minmax(0, 1fr);
+            }
+            .report-title-table > tbody > tr > td {
+                display: block;
+                min-width: 0;
+                width: auto;
+                height: auto;
+            }
+            .report-title-box {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                padding: 16px !important;
+            }
+            #reportTitle {
+                white-space: normal;
+                overflow-wrap: anywhere;
+                font-size: clamp(20px, 2.3vw, 32px);
+                line-height: 1.35;
+            }
+            .company-info { white-space: normal; overflow-wrap: anywhere; }
+            .company-info .info-label { width: 40%; }
+            .report-container {
+                margin-top: 8px;
+                border: 1px solid #cbd5e1;
+                scrollbar-color: #94a3b8 #f1f5f9;
+            }
+            .note-table { max-width: 100%; }
+            #tblReport thead th { position: sticky; z-index: 3; }
+            #tblReport thead tr:first-child th { top: 0; }
+            #tblReport thead tr:nth-child(2) th { top: 25px; }
+        }
+        @media screen and (max-width: 760px) {
+            .report-title-table > tbody > tr { grid-template-columns: minmax(0, 1fr); }
+            .company-box { border-right: 0 !important; }
+        }
     </style>
+    <script src="ReportFrozenColumns.js" defer></script>
 </head>
 
 <body>

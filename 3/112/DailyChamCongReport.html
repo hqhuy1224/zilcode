@@ -280,7 +280,14 @@
                 page-break-inside: avoid;
             }
         }
+        @media screen {
+            #divReport { width: 100%; }
+            #tblReport thead th { position: sticky; z-index: 3; }
+            #tblReport thead tr:first-child th { top: 0; }
+            #tblReport thead tr:nth-child(2) th { top: 25px; }
+        }
     </style>
+    <script src="ReportFrozenColumns.js" defer></script>
 </head>
 
 <body>

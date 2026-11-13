@@ -44,7 +44,6 @@
             background: #e9e9e9;
         }
 
-        /* Cảnh báo dữ liệu (JS điền). Nằm ngoài bảng nên không đi vào file Excel / bản in. */
         .warn {
             margin: 0 0 6px;
             padding: 6px 10px;
@@ -61,11 +60,9 @@
 
         .report-container {
             width: 100%;
-            overflow: auto;
+            overflow: visible;
         }
 
-        /* Toàn bộ báo cáo (tiêu đề + bảng + chữ ký) là MỘT bảng 32 cột,
-           nên màn hình và file Excel luôn khớp nhau. */
         #tblReport {
             width: 1961px;
             table-layout: fixed;
@@ -86,7 +83,6 @@
             overflow-wrap: break-word;
         }
 
-        /* ================= TIÊU ĐỀ BÁO CÁO ================= */
         #tblReport td.logo-l {
             text-align: left;
         }
@@ -129,7 +125,6 @@
             white-space: nowrap;
         }
 
-        /* ================= TIÊU ĐỀ BẢNG (2 tầng) ================= */
         #tblReport thead tr.hdr th {
             border: 1px solid #000;
             background: #fce4d6;
@@ -155,7 +150,6 @@
             background: #ffff00;
         }
 
-        /* ================= DỮ LIỆU ================= */
         #tblData td {
             border: 1px solid #000;
             height: 25px;
@@ -168,7 +162,6 @@
             font-weight: bold;
         }
 
-        /* cột địa chỉ / loại hình: chữ nhỏ vì có thể dài */
         #tblData td.ad {
             font-size: 9px;
         }
@@ -177,7 +170,6 @@
             font-size: 8px;
         }
 
-        /* Tổng + Trọng điểm: nền vàng, chữ đậm */
         #tblData td.y {
             background: #ffff00;
             font-size: 12px;
@@ -194,7 +186,6 @@
             font-size: 10px;
         }
 
-        /* ===== Dòng tổng của từng khu vực ===== */
         #tblData tr.sub td {
             background: #f2f2f2;
             height: 28px;
@@ -207,7 +198,6 @@
             font-size: 14pt;
         }
 
-        /* ===== Dòng TỔNG CỘNG ===== */
         #tblData tr.grand td {
             background: #bfbfbf;
             height: 30px;
@@ -225,7 +215,6 @@
             background: #ffff00;
         }
 
-        /* ================= NGÀY KÝ + CHỮ KÝ (không viền) ================= */
         #tblFooter td {
             border: 0;
             padding: 2px 3px;
@@ -257,7 +246,6 @@
             height: 90px;
         }
 
-        /* ================= IN ================= */
         @page {
             size: A3 landscape;
             margin: 8mm;
@@ -278,12 +266,10 @@
                 overflow: visible;
             }
 
-            /* Bảng rộng ~1961px: thu nhỏ để vừa chiều ngang khổ A3 */
             #tblReport {
                 zoom: 0.75;
             }
 
-            /* Tiêu đề nằm trong thead nên không lặp lại ở từng trang */
             #tblReport thead {
                 display: table-row-group;
             }
@@ -292,11 +278,27 @@
                 page-break-inside: avoid;
             }
         }
+
+        @media screen {
+            .report-container { overflow: auto; max-height: 78vh; }
+            #tblReport thead tr.hdr th {
+                position: sticky;
+                z-index: 3;
+            }
+
+            #tblReport thead tr.hdr1 th {
+                top: 0;
+            }
+
+            #tblReport thead tr.hdr2 th {
+                top: 26px;
+            }
+        }
     </style>
+    <script src="ReportFrozenColumns.js" defer></script>
 </head>
 
 <body>
-
     <div class="toolbar">
         <a class="export-button"
            href="#"
@@ -314,83 +316,86 @@
     <div id="divWarn" class="warn" hidden></div>
 
     <div class="report-container" id="divReport">
-
         <table id="tblReport">
-
-            <!-- 32 cột: 9 thông tin + 2 ngày công + 8 khoán + 8 thực đạt + 5 cuối -->
             <colgroup>
-                <col style="width:28px">   <!--  1 STT -->
-                <col style="width:100px">  <!--  2 TL/TF -->
-                <col style="width:120px">  <!--  3 Họ và tên NVTT -->
-                <col style="width:50px">   <!--  4 Loại hình điểm bán -->
-                <col style="width:130px">  <!--  5 Tên Nhà hàng -->
-                <col style="width:55px">   <!--  6 Số nhà -->
-                <col style="width:150px">  <!--  7 Đường (tổ, xóm, ...) -->
-                <col style="width:100px">  <!--  8 Xã/Phường -->
-                <col style="width:70px">   <!--  9 Tỉnh/Thành -->
-                <col style="width:42px">   <!-- 10 Định mức -->
-                <col style="width:42px">   <!-- 11 Thực hiện -->
-                <col style="width:44px">   <!-- 12 Khoán: Keg 1L -->
-                <col style="width:44px">   <!-- 13 Khoán: Bold -->
-                <col style="width:44px">   <!-- 14 Khoán: Light -->
-                <col style="width:44px">   <!-- 15 Khoán: TB -->
-                <col style="width:50px">   <!-- 16 Khoán: Pre lon sleek -->
-                <col style="width:44px">   <!-- 17 Khoán: Pre chai -->
-                <col style="width:52px">   <!-- 18 Khoán: Tổng -->
-                <col style="width:52px">   <!-- 19 Khoán: Trọng điểm -->
-                <col style="width:44px">   <!-- 20 Thực đạt: Keg 1L -->
-                <col style="width:44px">   <!-- 21 Thực đạt: Bold -->
-                <col style="width:44px">   <!-- 22 Thực đạt: Light -->
-                <col style="width:44px">   <!-- 23 Thực đạt: TB -->
-                <col style="width:50px">   <!-- 24 Thực đạt: Pre lon sleek -->
-                <col style="width:44px">   <!-- 25 Thực đạt: Pre chai -->
-                <col style="width:52px">   <!-- 26 Thực đạt: Tổng -->
-                <col style="width:52px">   <!-- 27 Thực đạt: Trọng điểm -->
-                <col style="width:62px">   <!-- 28 Sản phẩm trọng điểm -->
-                <col style="width:52px">   <!-- 29 % Tổng sản lượng -->
-                <col style="width:52px">   <!-- 30 % Sản lượng trọng điểm -->
-                <col style="width:90px">   <!-- 31 TL/TF kí xác nhận -->
-                <col style="width:70px">   <!-- 32 Tỉnh/Thành (cũ) -->
+                <col style="width:28px">
+                <col style="width:100px">
+                <col style="width:120px">
+                <col style="width:50px">
+                <col style="width:130px">
+                <col style="width:55px">
+                <col style="width:150px">
+                <col style="width:100px">
+                <col style="width:70px">
+                <col style="width:42px">
+                <col style="width:42px">
+                <col style="width:44px">
+                <col style="width:44px">
+                <col style="width:44px">
+                <col style="width:44px">
+                <col style="width:50px">
+                <col style="width:44px">
+                <col style="width:52px">
+                <col style="width:52px">
+                <col style="width:44px">
+                <col style="width:44px">
+                <col style="width:44px">
+                <col style="width:44px">
+                <col style="width:50px">
+                <col style="width:44px">
+                <col style="width:52px">
+                <col style="width:52px">
+                <col style="width:62px">
+                <col style="width:52px">
+                <col style="width:52px">
+                <col style="width:90px">
+                <col style="width:70px">
             </colgroup>
 
             <thead id="tblHead">
-
-                <!-- ===== Logo + tiêu đề báo cáo ===== -->
                 <tr>
                     <td colspan="3" rowspan="3" class="logo-l">
                         <img id="imgLogoOrit"
                              src="https://demo.zilcode.com/media/3/13/7/orit.jpg"
-                             width="170" height="52" alt="ORIT Workforce">
+                             width="170"
+                             height="52"
+                             alt="ORIT Workforce">
                     </td>
 
-                    <td colspan="26" class="t1">BÁO CÁO TỔNG KẾT HOÀN THÀNH CHỈ TIÊU CÔNG VIỆC</td>
+                    <td colspan="26" class="t1">
+                        BÁO CÁO TỔNG KẾT HOÀN THÀNH CHỈ TIÊU CÔNG VIỆC
+                    </td>
 
                     <td colspan="3" rowspan="3" class="logo-r">
-                        <!-- Đổi src sang đường dẫn logo HABECO HNB Trading thực tế -->
                         <img id="imgLogoHabeco"
                              src="habeco_hnb.png"
-                             width="150" height="52" alt="HABECO HNB Trading Ltd.">
+                             width="150"
+                             height="52"
+                             alt="HABECO HNB Trading Ltd.">
                     </td>
                 </tr>
 
                 <tr>
                     <td colspan="26" class="t2">
-                        THÁNG <span id="labThang">05</span> NĂM <span id="labNam">2026</span>
+                        THÁNG <span id="labThang">05</span>
+                        NĂM <span id="labNam">2026</span>
                     </td>
                 </tr>
 
                 <tr>
                     <td colspan="26" class="t3">
-                        Khu vực: <span id="labThiTruong">Đồng Bằng Sông Hồng 1</span>
+                        Khu vực:
+                        <span id="labThiTruong">Đồng Bằng Sông Hồng 1</span>
                     </td>
                 </tr>
 
                 <tr>
                     <td colspan="4" class="dv">Đơn vị Cung ứng</td>
-                    <td colspan="28" class="dv">: Công ty Cổ phần Đầu tư ORIT</td>
+                    <td colspan="28" class="dv">
+                        : Công ty Cổ phần Đầu tư ORIT
+                    </td>
                 </tr>
 
-                <!-- ===== Tiêu đề bảng, tầng 1 ===== -->
                 <tr class="hdr hdr1">
                     <th rowspan="2">STT</th>
                     <th rowspan="2">TL/TF</th>
@@ -398,11 +403,11 @@
                     <th rowspan="2" class="sm">Loại hình điểm bán</th>
 
                     <th colspan="5">Địa chỉ làm việc của NVTT</th>
-
                     <th colspan="2">Ngày công</th>
 
-                    <th colspan="8">Sản lượng khoán (két/thùng)</th>
+                    <!-- JS tự chèn các tuần trước khối khoán. -->
 
+                    <th colspan="8">Sản lượng khoán (két/thùng)</th>
                     <th colspan="8">Sản lượng thực đạt (két/thùng)</th>
 
                     <th rowspan="2" class="sm">Sản phẩm trọng điểm</th>
@@ -412,7 +417,6 @@
                     <th rowspan="2" class="sm">Tỉnh/ Thành (cũ)</th>
                 </tr>
 
-                <!-- ===== Tiêu đề bảng, tầng 2 ===== -->
                 <tr class="hdr hdr2">
                     <th>Tên Nhà hàng</th>
                     <th>Số nhà</th>
@@ -443,144 +447,104 @@
                 </tr>
             </thead>
 
-            <!-- ===== Dữ liệu: JS xóa các dòng mẫu này rồi đổ dữ liệu thật vào ===== -->
-            <tbody id="tblData">
+            <tbody id="tblData"></tbody>
 
-                <!-- dòng mẫu: nhân viên -->
-                <tr>
-                    <td>24</td>
-                    <td>Nguyễn Minh Tân</td>
-                    <td class="nm">Trần Thị Thu Phương</td>
-                    <td class="ad">HRC</td>
-                    <td class="ad">Hạnh Bia, Idol, Quán Cầu Bàng</td>
-                    <td class="ad">2B, 869,</td>
-                    <td class="ad">Bạch Đằng, Ngô Gia Tự</td>
-                    <td class="ad">Hồng Bàng, Hải An</td>
-                    <td class="ad">Hải Phòng</td>
-                    <td>26</td>
-                    <td>24</td>
-                    <td>10</td><td></td><td>10</td><td>120</td><td>60</td><td></td>
-                    <td class="y">200</td>
-                    <td class="y">70</td>
-                    <td>4.0</td><td></td><td>32.0</td><td>83.0</td><td>68.0</td><td>15.0</td>
-                    <td class="y">202</td>
-                    <td class="y">72</td>
-                    <td class="sp">K+Pre lon</td>
-                    <td class="pc">101%</td>
-                    <td class="pc">103%</td>
-                    <td></td>
-                    <td class="tinh">Hải Phòng</td>
-                </tr>
-
-                <!-- dòng mẫu: tổng khu vực -->
-                <tr class="sub">
-                    <td></td>
-                    <td class="lbl" colspan="8">TỔNG HẢI PHÒNG</td>
-                    <td>676</td>
-                    <td>606.5</td>
-                    <td>1120</td><td>10</td><td>10</td><td>1281</td><td>1698</td><td>1347</td>
-                    <td class="y">5466</td>
-                    <td class="y">3378</td>
-                    <td>1898</td><td>0</td><td>32</td><td>1295</td><td>1443</td><td>1433</td>
-                    <td class="y">6101</td>
-                    <td class="y">3803</td>
-                    <td></td>
-                    <td class="pc">112%</td>
-                    <td class="pc">113%</td>
-                    <td></td>
-                    <td></td>
-                </tr>
-
-                <!-- dòng mẫu: tổng cộng -->
-                <tr class="grand">
-                    <td class="lbl" colspan="9">TỔNG CỘNG</td>
-                    <td>780</td>
-                    <td>694</td>
-                    <td>1185</td><td>10</td><td>10</td><td>1321</td><td>1953</td><td>1477</td>
-                    <td class="y">5956</td>
-                    <td class="y">3698</td>
-                    <td>2051</td><td>0</td><td>32</td><td>1301</td><td>1686</td><td>1496</td>
-                    <td class="y">6566</td>
-                    <td class="y">4199</td>
-                    <td></td>
-                    <td class="pc">110%</td>
-                    <td class="pc">114%</td>
-                    <td></td>
-                    <td></td>
-                </tr>
-            </tbody>
-
-            <!-- ===== Ngày ký + chữ ký ===== -->
             <tbody id="tblFooter">
                 <tr>
                     <td colspan="18"></td>
                     <td colspan="14" class="sg-date">
-                        Hà Nội, ngày <span id="labNgayKy">15</span> tháng <span id="labThangKy">06</span> năm <span id="labNamKy">2026</span>
+                        Hà Nội, ngày <span id="labNgayKy">15</span>
+                        tháng <span id="labThangKy">06</span>
+                        năm <span id="labNamKy">2026</span>
                     </td>
                 </tr>
 
                 <tr>
-                    <td colspan="5" class="sg-h"><u>ĐẠI DIỆN NHÀ CUNG ỨNG</u></td>
-                    <td colspan="13" class="sg-h"><u>GIÁM ĐỐC PHÁT TRIỂN THỊ TRƯỜNG</u></td>
-                    <td colspan="14" class="sg-h"><u>TRƯỞNG NHÓM ĐÀO TẠO VÀ QUẢN LÝ ĐẠI SỨ THƯƠNG HIỆU</u></td>
+                    <td colspan="5" class="sg-h">
+                        <u>ĐẠI DIỆN NHÀ CUNG ỨNG</u>
+                    </td>
+
+                    <td colspan="13" class="sg-h">
+                        <u>GIÁM ĐỐC PHÁT TRIỂN THỊ TRƯỜNG</u>
+                    </td>
+
+                    <td colspan="14" class="sg-h">
+                        <u>TRƯỞNG NHÓM ĐÀO TẠO VÀ QUẢN LÝ ĐẠI SỨ THƯƠNG HIỆU</u>
+                    </td>
                 </tr>
 
                 <tr>
-                    <td colspan="5" class="sg-s">(ký, họ tên, đóng dấu)</td>
-                    <td colspan="13" class="sg-s">(ký, ghi rõ họ tên)</td>
-                    <td colspan="14" class="sg-s">(ký, ghi rõ họ tên)</td>
+                    <td colspan="5" class="sg-s">
+                        (ký, họ tên, đóng dấu)
+                    </td>
+
+                    <td colspan="13" class="sg-s">
+                        (ký, ghi rõ họ tên)
+                    </td>
+
+                    <td colspan="14" class="sg-s">
+                        (ký, ghi rõ họ tên)
+                    </td>
                 </tr>
 
-                <tr><td colspan="32" class="sg-space"></td></tr>
+                <tr>
+                    <td colspan="32" class="sg-space"></td>
+                </tr>
             </tbody>
-
         </table>
-
     </div>
 
     <script>
-        /* ===== Các hàm hỗ trợ cho xuất Excel ===== */
-
-        // Chuyển rgb()/rgba() sang #rrggbb để Excel đọc được
         function toHex(color) {
             var m = (color || "").match(/rgba?\(([^)]+)\)/);
+
             if (!m) return color || "#000000";
-            var p = m[1].split(",").map(function (s) { return parseFloat(s); });
-            if (p.length === 4 && p[3] === 0) return "#ffffff";
+
+            var p = m[1].split(",").map(function (s) {
+                return parseFloat(s);
+            });
+
+            if (p.length === 4 && p[3] === 0) {
+                return "#ffffff";
+            }
+
             return "#" + p.slice(0, 3).map(function (n) {
                 var h = Math.round(n).toString(16);
                 return h.length < 2 ? "0" + h : h;
             }).join("");
         }
 
-        // Viền từng cạnh theo đúng viền đang hiển thị (ô tiêu đề/chữ ký không có viền)
         function borderSide(cs, side) {
             var w = parseFloat(cs["border" + side + "Width"]);
             var st = cs["border" + side + "Style"];
 
             if (w > 0 && st !== "none") {
-                return ".5pt solid " + toHex(cs["border" + side + "Color"]);
+                return ".5pt solid " +
+                    toHex(cs["border" + side + "Color"]);
             }
+
             return "none";
         }
 
-        // Gán style trực tiếp (inline) cho ô theo đúng định dạng đang hiển thị.
-        // Excel không hiểu class/nth-child nên phải "đóng cứng" style vào từng ô.
         function styleCell(src, dst, asText) {
             var cs = window.getComputedStyle(src);
-
             var align = cs.textAlign;
+
             if (align === "start") align = "left";
             if (align === "end") align = "right";
 
             var valign = cs.verticalAlign;
-            if (valign !== "top" && valign !== "bottom") valign = "middle";
+
+            if (valign !== "top" && valign !== "bottom") {
+                valign = "middle";
+            }
 
             var st =
                 "background:" + toHex(cs.backgroundColor) + ";" +
                 "color:" + toHex(cs.color) + ";" +
                 "font-family:" + cs.fontFamily + ";" +
-                "font-size:" + (parseFloat(cs.fontSize) * 0.75).toFixed(1) + "pt;" +
+                "font-size:" +
+                    (parseFloat(cs.fontSize) * 0.75).toFixed(1) + "pt;" +
                 "font-weight:" + cs.fontWeight + ";" +
                 "font-style:" + cs.fontStyle + ";" +
                 "text-align:" + align + ";" +
@@ -589,11 +553,13 @@
                 "border-right:" + borderSide(cs, "Right") + ";" +
                 "border-bottom:" + borderSide(cs, "Bottom") + ";" +
                 "border-left:" + borderSide(cs, "Left") + ";" +
-                "white-space:" + (cs.whiteSpace === "nowrap" ? "nowrap" : "normal") + ";" +
+                "white-space:" +
+                    (cs.whiteSpace === "nowrap" ? "nowrap" : "normal") + ";" +
                 "word-wrap:break-word;";
 
-            // Giữ nguyên dạng chữ (không bị Excel đổi 4.0, 101%, 2B... thành số/ngày theo vùng miền)
-            if (asText) st += 'mso-number-format:"\\@";';
+            if (asText) {
+                st += 'mso-number-format:"\\@";';
+            }
 
             dst.setAttribute("style", st);
             dst.removeAttribute("class");
@@ -602,7 +568,6 @@
             dst.removeAttribute("height");
         }
 
-        // Nhân bản một phần của bảng (thead/tbody), đồng bộ style, chiều cao dòng và hình ảnh
         function cloneSection(section, asText) {
             var c = section.cloneNode(true);
             var srcRows = section.rows;
@@ -611,21 +576,37 @@
             for (var i = 0; i < srcRows.length; i++) {
                 dstRows[i].removeAttribute("id");
                 dstRows[i].removeAttribute("class");
-                dstRows[i].setAttribute("style", "height:" + srcRows[i].offsetHeight + "px;");
+
+                dstRows[i].setAttribute(
+                    "style",
+                    "height:" + srcRows[i].offsetHeight + "px;"
+                );
 
                 for (var j = 0; j < srcRows[i].cells.length; j++) {
-                    styleCell(srcRows[i].cells[j], dstRows[i].cells[j], asText);
+                    styleCell(
+                        srcRows[i].cells[j],
+                        dstRows[i].cells[j],
+                        asText
+                    );
                 }
             }
 
-            // Hình ảnh: dùng đường dẫn tuyệt đối + kích thước thật
             var srcImgs = section.querySelectorAll("img");
             var dstImgs = c.querySelectorAll("img");
 
             for (var k = 0; k < srcImgs.length; k++) {
                 dstImgs[k].setAttribute("src", srcImgs[k].src);
-                dstImgs[k].setAttribute("width", srcImgs[k].offsetWidth || srcImgs[k].width);
-                dstImgs[k].setAttribute("height", srcImgs[k].offsetHeight || srcImgs[k].height);
+
+                dstImgs[k].setAttribute(
+                    "width",
+                    srcImgs[k].offsetWidth || srcImgs[k].width
+                );
+
+                dstImgs[k].setAttribute(
+                    "height",
+                    srcImgs[k].offsetHeight || srcImgs[k].height
+                );
+
                 dstImgs[k].removeAttribute("id");
             }
 
@@ -633,7 +614,6 @@
         }
 
         function exportExcel() {
-
             var table = document.getElementById("tblReport");
 
             if (!table || !table.tHead) {
@@ -641,30 +621,31 @@
                 return;
             }
 
-            /* ---- Độ rộng cột lấy từ <colgroup> ---- */
             var colgroup = "<colgroup>";
+
             table.querySelectorAll("colgroup col").forEach(function (col) {
                 var w = parseFloat(col.style.width) || 40;
-                colgroup += '<col width="' + w + '" style="width:' + w + 'px">';
+
+                colgroup +=
+                    '<col width="' + w +
+                    '" style="width:' + w + 'px">';
             });
+
             colgroup += "</colgroup>";
 
-            /* ---- Các phần của bảng: tiêu đề + header, dữ liệu, chữ ký ---- */
             var rowsHtml = cloneSection(table.tHead, false);
 
             Array.prototype.forEach.call(table.tBodies, function (tb) {
                 rowsHtml += cloneSection(tb, tb.id === "tblData");
             });
 
-            /* ---- Ghép thành file Excel (HTML) ---- */
             var html =
                 '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
                 'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
                 'xmlns="http://www.w3.org/TR/REC-html40">' +
-
                 '<head>' +
-                '<meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
-
+                '<meta http-equiv="Content-Type" ' +
+                'content="text/html; charset=utf-8">' +
                 '<!--[if gte mso 9]>' +
                 '<xml>' +
                     '<x:ExcelWorkbook>' +
@@ -686,18 +667,16 @@
                     '</x:ExcelWorkbook>' +
                 '</xml>' +
                 '<![endif]-->' +
-
                 '<style>' +
                     'body{font-family:Arial,sans-serif;font-size:10pt;}' +
                     'table{border-collapse:collapse;table-layout:fixed;}' +
-                    '@page{size:29.7cm 42cm;mso-page-orientation:landscape;margin:0.5cm;}' +
+                    '@page{size:29.7cm 42cm;' +
+                    'mso-page-orientation:landscape;margin:0.5cm;}' +
                 '</style>' +
-
                 '</head>' +
-
                 '<body>' +
                     '<table border="0" cellpadding="0" cellspacing="0" ' +
-                        'style="border-collapse:collapse;table-layout:fixed;">' +
+                    'style="border-collapse:collapse;table-layout:fixed;">' +
                         colgroup +
                         rowsHtml +
                     '</table>' +
@@ -705,7 +684,7 @@
                 '</html>';
 
             var blob = new Blob(
-                ["﻿", html],
+                ["\ufeff", html],
                 { type: "application/vnd.ms-excel;charset=utf-8;" }
             );
 
@@ -724,6 +703,5 @@
             }, 1500);
         }
     </script>
-
 </body>
 </html>

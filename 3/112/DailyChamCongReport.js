@@ -28,7 +28,7 @@ var DailyChamCongReport = {
 
     run: function () {
         var now = new Date();
-        DailyChamCongReport.url = NUT.services[3].url; // đổi services[2] nếu hệ thống bạn dùng index 2
+        DailyChamCongReport.url = NUT.services[3].url; 
 
         NUT.w2popup.open({
             title: "📜 Daily Report - Bảng chấm công",
@@ -312,7 +312,7 @@ var DailyChamCongReport = {
             var fixedBefore = [
                 "STT",
                 "Mã Điểm bán (DMS)",
-                "Chi nhánh",
+                "Khu vực",
                 "TL/TF",
                 "Họ và tên NVTT",
                 "Mã nhân viên",

@@ -458,7 +458,7 @@ var MonthlyMS01Report = {
             var diaChi = U.uniq([info.sonha, info.duong, info.huyen]).join(", ");
             var gio = [U.hhmm(info.gioden) && U.hhmm(info.giove) ? U.hhmm(info.gioden) + " - " + U.hhmm(info.giove) : "",
                        U.hhmm(info.gioden2) && U.hhmm(info.giove2) ? U.hhmm(info.gioden2) + " - " + U.hhmm(info.giove2) : ""]
-                       .filter(Boolean).join("; ");
+                       .filter(function (shift) { return shift && shift !== "00:00 - 00:00"; }).join("; ");
 
             return {
                 ma: p.ma,

@@ -162,10 +162,25 @@ var DailyCheckInoutReport = {
                 "Ngày báo cáo: " + new Date().toLocaleString("vi-VN");
 
 
+            // Explicit widths keep the identity columns compact when frozen.
+            var table = head.parentElement;
+            var oldColgroup = table.querySelector("colgroup");
+            if (oldColgroup) oldColgroup.remove();
+            var colgroup = doc.createElement("colgroup");
+            var columnWidths = [30, 85, 80, 130, 170, 55, 85, 140, 65, 270, 100, 100, 100];
+            for (var ci = 0; ci < soNgay * 2; ci++) columnWidths.push(42);
+            columnWidths.push(75);
+            columnWidths.forEach(function (width) {
+                var col = doc.createElement("col");
+                col.style.width = width + "px";
+                colgroup.appendChild(col);
+            });
+            table.insertBefore(colgroup, table.firstChild);
+
             var fixedBefore = [
                 "STT",
                 "Mã điểm bán (DMS)",
-                "Chi nhánh",
+                "Khu vực",
                 "TL/TF",
                 "Họ và tên NVTT",
                 "Mã nhân viên",
@@ -225,10 +240,23 @@ var DailyCheckInoutReport = {
                     return "";
                 }
 
-                var s = String(value);
-                var match = s.match(/(\d{1,2}:\d{2})/);
+                var s = String(value).trim();
+                var match = s.match(/(\d{1,2}):(\d{2})/);
 
-                return match ? match[1] : s;
+                return match ? match[1].padStart(2, "0") + ":" + match[2] : s;
+            }
+
+            function formatCheckTime(value) {
+                if (value === null || value === undefined || value === "") return "";
+                var text = String(value).trim();
+                var date = value instanceof Date ? value : new Date(/[zZ]$|[+-]\d\d:\d\d$/.test(text) ? text : text + "Z");
+                if (isNaN(date.getTime())) return text;
+                return date.toLocaleTimeString("vi-VN", {
+                    timeZone: "Asia/Ho_Chi_Minh",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hourCycle: "h23"
+                });
             }
 
             function hasValue(value) {
@@ -351,10 +379,12 @@ var DailyCheckInoutReport = {
                     (rec.giove ? " - " + formatTime(rec.giove) : "");
                 var ca2 = formatTime(rec.gioden2) +
                     (rec.giove2 ? " - " + formatTime(rec.giove2) : "");
-                var gioLamViec = ca2 ? ca1 + ", " + ca2 : ca1;
+                var gioLamViec = [ca1, ca2].filter(function (shift) {
+                    return shift && shift !== "00:00 - 00:00";
+                }).join(", ");
 
                 addCell(index + 1, "center");        // 1  STT
-                addCell(rec.madiemban);              // 2  Mã điểm bán (DMS)
+                addCell(rec.dms);              // 2  Mã điểm bán (DMS)
                 addCell(rec.thitruong);              // 3  Chi nhánh
                 addCell(tlTf);                       // 4  TL/TF
                 addCell(rec.hotenNVTT);              // 5  Họ và tên NVTT
@@ -401,12 +431,12 @@ var DailyCheckInoutReport = {
 
                         if (hasValue(r.thoigianden)) {
                             hasIn = true;
-                            inTimes.push(formatTime(r.thoigianden));
+                            inTimes.push(formatCheckTime(r.thoigianden));
                         }
 
                         if (hasValue(r.thoigianve)) {
                             hasOut = true;
-                            outTimes.push(formatTime(r.thoigianve));
+                            outTimes.push(formatCheckTime(r.thoigianve));
                         }
 
                         if (!hasValue(r.thoigianden) || !hasValue(r.thoigianve)) {

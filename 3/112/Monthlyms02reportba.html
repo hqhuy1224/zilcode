@@ -53,7 +53,15 @@
 	.ky b { font-size: 14px; text-transform: uppercase; }
 	.ky i { display: block; font-size: 11px; margin-top: 2px; }
 	.ky .sp { height: 90px; }
+	@media screen {
+		.report-container { width: 100%; overflow: auto; max-height: 78vh; }
+		table.rpt { min-width: 2000px; }
+		table.rpt thead th { position: sticky; z-index: 3; }
+		table.rpt thead tr:first-child th { top: 0; height: 28px; }
+		table.rpt thead tr:nth-child(2) th { top: 28px; }
+	}
 </style>
+    <script src="ReportFrozenColumns.js" defer></script>
 </head>
 <body>
 
@@ -72,6 +80,7 @@
 
 <div class="donvi"><span class="lb">Đơn vị Cung ứng</span><span>: Công ty Cổ phần Đầu tư Orit</span></div>
 
+<div class="report-container">
 <table class="rpt" id="tblData">
 	<thead>
 		<tr>
@@ -105,6 +114,7 @@
 	</thead>
 	<tbody id="tbdData"></tbody>
 </table>
+</div>
 
 <div class="ghichu">
 	<u>Ghi chú</u>

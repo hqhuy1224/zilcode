@@ -51,7 +51,7 @@
         }
         .warn[hidden] { display: none; }
 
-        .report-container { width: 100%; overflow: auto; }
+        .report-container { width: 100%; overflow: visible; }
 
         /* Mỗi nhân viên / điểm bán là một bảng .rpt 39 cột; JS nhân bản bảng này cho từng trang */
         table.rpt {
@@ -197,6 +197,11 @@
             table.rpt:last-child { page-break-after: auto; }
             .rpt thead { display: table-row-group; }
             .rpt tr { page-break-inside: avoid; }
+        }
+        @media screen {
+            .rpt thead tr.h th { position: sticky; z-index: 3; }
+            .rpt thead tr.h1 th { top: 0; }
+            .rpt thead tr.h2 th { top: 22px; }
         }
     </style>
 </head>

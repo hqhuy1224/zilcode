@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <title>SUMMARY — Tổng hợp theo tỉnh</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 5px;
+            color: #000;
+            background: #fff;
+            font: 12px Arial, sans-serif;
+        }
+
+        .toolbar {
+            padding: 5px;
+            text-align: right;
+            background: #f4f4f4;
+            margin-bottom: 5px;
+        }
+
+        .export-button {
+            display: inline-block;
+            padding: 7px 13px;
+            margin-left: 5px;
+            border: 1px solid #777;
+            background: #fff;
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 10pt;
+        }
+
+        .export-button:hover {
+            background: #e9e9e9;
+        }
+
+        #reportHeader {
+            font-family: "Times New Roman", serif;
+            margin-bottom: 8px;
+        }
+
+        .logo {
+            float: left;
+            width: 170px;
+            height: 52px;
+            object-fit: contain;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 20pt;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+
+        .market {
+            text-align: center;
+            font-size: 14pt;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        .supplier {
+            clear: both;
+            font-size: 12pt;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .warn {
+            padding: 6px 10px;
+            margin: 6px 0;
+            background: #fff7ed;
+            border: 1px solid #fdba74;
+            color: #9a3412;
+            white-space: pre-line;
+            font: 12px/1.5 Arial, sans-serif;
+        }
+
+        .warn[hidden] {
+            display: none;
+        }
+
+        .report-container {
+            width: 100%;
+            overflow: visible;
+        }
+
+        #tblReport {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: max-content;
+            font-family: "Times New Roman", serif;
+            font-size: 12px;
+        }
+
+        #tblReport th,
+        #tblReport td {
+            border: 1px solid #000;
+            padding: 4px 3px;
+            text-align: center;
+            vertical-align: middle;
+            overflow-wrap: break-word;
+        }
+
+        #tblReport th {
+            background: #c6e0b4;
+            font-weight: bold;
+        }
+
+        #tblReport .sale,
+        #tblReport .metric {
+            background: #e7e6e6;
+        }
+
+        #tblReport .percent {
+            background: #ffff00;
+            font-weight: bold;
+        }
+
+        #tblReport td.province {
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        #tblReport tr.total td {
+            background: #ffe699;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        #tblReport tr.total td.percent {
+            background: #ffff00;
+        }
+
+        #tblReport thead tr:nth-child(1) th {
+            height: 30px;
+        }
+
+        #tblReport thead tr:nth-child(2) th,
+        #tblReport thead tr:nth-child(3) th {
+            height: 25px;
+        }
+
+        @page {
+            size: A3 landscape;
+            margin: 8mm;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                margin: 0;
+            }
+
+            .toolbar,
+            .warn {
+                display: none !important;
+            }
+
+            #tblReport {
+                font-size: 12px;
+                zoom: var(--print-zoom, 0.35);
+            }
+
+            #tblReport th,
+            #tblReport td {
+                padding: 2px 1px;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tr {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="toolbar">
+        <a href="#"
+           class="export-button"
+           onclick="exportExcel();return false;">
+            📊 Kết xuất Excel
+        </a>
+
+        <a href="#"
+           class="export-button"
+           onclick="window.print();return false;">
+            🖨️ In / Lưu PDF
+        </a>
+    </div>
+
+    <div id="reportHeader">
+        <img class="logo"
+             src="https://demo.zilcode.com/media/3/13/7/orit.jpg"
+             alt="ORIT Workforce">
+
+        <h1>SUMMARY <span id="labPeriod"></span></h1>
+
+        <div class="market">
+            Khu vực: <span id="labMarket"></span>
+        </div>
+
+        <div class="supplier">
+            Đơn vị Cung ứng: Công ty Cổ phần Đầu tư ORIT
+        </div>
+    </div>
+
+    <div id="divWarn" class="warn" hidden></div>
+
+    <div class="report-container">
+        <table id="tblReport">
+            <thead id="tblHead"></thead>
+            <tbody id="tblData"></tbody>
+        </table>
+    </div>
+
+    <script>
+        window.addEventListener("beforeprint", function () {
+            var table = document.getElementById("tblReport");
+
+            table.style.setProperty(
+                "--print-zoom",
+                Math.min(1, 1520 / table.offsetWidth)
+            );
+        });
+
+        function exportExcel() {
+            var source = document.getElementById("tblReport");
+            var copy = source.cloneNode(true);
+
+            var srcCells = source.querySelectorAll("th,td");
+            var dstCells = copy.querySelectorAll("th,td");
+
+            for (var i = 0; i < srcCells.length; i++) {
+                var cs = getComputedStyle(srcCells[i]);
+
+                dstCells[i].setAttribute(
+                    "style",
+                    "border:1px solid #000;" +
+                    "padding:4px;" +
+                    "text-align:" + cs.textAlign + ";" +
+                    "vertical-align:middle;" +
+                    "background:" + cs.backgroundColor + ";" +
+                    "font-family:Times New Roman;" +
+                    "font-weight:" + cs.fontWeight + ";" +
+                    "white-space:normal;" +
+                    'mso-number-format:"\\@";'
+                );
+            }
+
+            var header = document
+                .getElementById("reportHeader")
+                .cloneNode(true);
+
+            var img = header.querySelector("img");
+
+            if (img) {
+                img.src = document
+                    .querySelector("#reportHeader img").src;
+            }
+
+            var html =
+                '<html xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+                '<head><meta charset="utf-8">' +
+                '<style>' +
+                    'table{border-collapse:collapse;table-layout:fixed}' +
+                    'h1{text-align:center}' +
+                '</style></head>' +
+                '<body>' +
+                    header.innerHTML +
+                    copy.outerHTML +
+                '</body></html>';
+
+            var url = URL.createObjectURL(
+                new Blob(
+                    ["\ufeff", html],
+                    {
+                        type: "application/vnd.ms-excel;charset=utf-8"
+                    }
+                )
+            );
+
+            var a = document.createElement("a");
+
+            a.href = url;
+            a.download =
+                "SUMMARY-TheoTinh-" +
+                document.getElementById("labPeriod")
+                    .textContent.replace("/", "-") +
+                ".xls";
+
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            setTimeout(function () {
+                URL.revokeObjectURL(url);
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
