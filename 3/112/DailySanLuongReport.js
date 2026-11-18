@@ -241,7 +241,7 @@ var DailySanLuongReport = {
                 "</tr>" +
 
                 "<tr>" +
-                    "<td>Thị trường</td>" +
+                    "<td>Khu vực</td>" +
                     "<td colspan='3'>" +
                     NUT.outerCboHTML(
                         NUT.domains[self.domainThiTruong].items,
@@ -264,13 +264,6 @@ var DailySanLuongReport = {
                         "</select>" +
                     "</td>" +
                 "</tr>" +
-
-                "<tr><td colspan='4'>" +
-                    "<input id='chk_Edit' type='checkbox'>" +
-                    "<label for='chk_Edit'>" +
-                        "Dùng dữ liệu hiệu chỉnh" +
-                    "</label>" +
-                "</td></tr>" +
                 "</table>",
 
             buttons:
@@ -428,7 +421,7 @@ var DailySanLuongReport = {
         }
 
         var cbo = document.getElementById("cbo_ThiTruong");
-        var thiTruong = cbo ? cbo.value : "";
+        var thiTruong = cbo ? String(cbo.value).trim() : "";
         var thiTruongText = "";
 
         if (
@@ -443,8 +436,8 @@ var DailySanLuongReport = {
         var vitrilv = document
             .getElementById("cbo_ViTriLv").value;
 
-        var dulieu = document
-            .getElementById("chk_Edit").checked ? 1 : 0;
+        // var dulieu = document
+        //     .getElementById("chk_Edit").checked ? 1 : 0;
 
         var date =
             nam + "-" +
@@ -497,14 +490,12 @@ var DailySanLuongReport = {
             var loadChamCong = function (lookupChiTieu) {
                 var where = [
                     ["nam", "=", nam],
-                    ["thang", "=", thang],
-                    ["madoitac", "=", "HABECO"],
-                    ["dulieu", "=", dulieu]
+                    ["thang", "=", thang]
+                    //["madoitac", "=", "HABECO"],
+                    //["dulieu", "=", dulieu]
                 ];
 
-                if (thiTruong) {
-                    where.push(["thitruong", "=", thiTruong]);
-                }
+                // Lọc thị trường trên dữ liệu trả về, giống DailyCheckInoutReport.
 
                 if (vitrilv == "BA") {
                     where.push(["vitrilv", "=", "BA"]);
@@ -526,21 +517,23 @@ var DailySanLuongReport = {
                         return;
                     }
 
-                    if (!res.result.length) {
+                    var data = res.result || [];
+                    if (data.length >= 20000) {
                         NUT.alert(
-                            "Không có dữ liệu báo cáo!",
-                            "yellow"
+                            "Dữ liệu tháng chạm giới hạn 20000 dòng. " +
+                            "Hãy chọn thêm vị trí để tránh xuất thiếu dữ liệu.",
+                            "red"
                         );
                         return;
                     }
 
-                    if (res.result.length >= 20000) {
-                        NUT.alert(
-                            "Dữ liệu vượt 20000 dòng nên báo cáo " +
-                            "sẽ thiếu. Hãy chọn thị trường hoặc " +
-                            "vị trí để thu hẹp.",
-                            "red"
-                        );
+                    if (thiTruong) {
+                        data = data.filter(function (rec) {
+                            return String(rec.thitruong == null ? "" : rec.thitruong).trim() === thiTruong;
+                        });
+                    }
+                    if (!data.length) {
+                        NUT.alert("Không có dữ liệu báo cáo!", "yellow");
                         return;
                     }
 
@@ -548,7 +541,7 @@ var DailySanLuongReport = {
 
                     self.loadFocus(function () {
                         self.attachSoldQty(
-                            res.result,
+                            data,
                             function (rowsWithSold) {
                                 var miss = Object.keys(self.unmapped);
 
@@ -669,7 +662,7 @@ var DailySanLuongReport = {
 
         var win = window.open(
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/DailySanLuongReport.html"
+            n$.app.appid + "/DailySanLuongReport.html?v=20261114.1"
         );
 
         if (!win) {
@@ -1232,7 +1225,7 @@ var DailySanLuongReport = {
                     );
                 }
 
-                addCell(r1(r.grand), "qd tot");
+                addCell((Math.round(r.grand * 10) / 10).toFixed(1).replace(".", ","), "qd tot");
                 addCell(r.pct ? r.pct.dat : "", "pc");
 
                 // 3. Sản lượng trọng điểm.
@@ -1287,7 +1280,7 @@ var DailySanLuongReport = {
                 addCell(rec.sonha, "info");
                 addCell(rec.duong, "info");
                 addCell(rec.huyen, "info");
-                addCell(rec.tenkhuvuc, "info");
+                addCell(rec.tenthitruong, "info");
 
                 if (self.summaryFirst) {
                     addSumCells(r, addCell);
@@ -1340,7 +1333,7 @@ var DailySanLuongReport = {
                     );
                 }
 
-                addTotal(r1(grandTotal));
+                addTotal((Math.round(grandTotal * 10) / 10).toFixed(1).replace(".", ","));
                 addTotal(pct(grandTotal, ctSumTot));
 
                 addTotal(ctTdTot || "");

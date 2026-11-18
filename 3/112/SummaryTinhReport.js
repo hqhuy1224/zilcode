@@ -405,7 +405,7 @@ var SummaryTinhReport = {
 
             var path =
                 "site/" + n$.user.siteid + "/" +
-                n$.app.appid + "/" + self.template;
+                n$.app.appid + "/" + self.template + "?v=20261114.1";
 
             if (useHelpers) {
                 win = NUT.openReportWindow(self, path);

@@ -22,7 +22,7 @@ var DailyCheckInoutReport = {
                     "style='width:55px' value='" + (now.getMonth() + 1) + "'></td>" +
                 "</tr>" +
                 "<tr>" +
-                    "<td>Thị trường</td>" +
+                    "<td>Khu vực</td>" +
                     "<td colspan='3'>" +
                         NUT.outerCboHTML(
                             NUT.domains[1201].items,
@@ -40,12 +40,7 @@ var DailyCheckInoutReport = {
                         "</select>" +
                     "</td>" +
                 "</tr>" +
-                "<tr>" +
-                    "<td colspan='4'>" +
-                        "<input id='chk_Edit' type='checkbox'>" +
-                        "<label for='chk_Edit'>Dùng dữ liệu hiệu chỉnh</label>" +
-                    "</td>" +
-                "</tr>" +
+               
                 "</table>",
 
             buttons:
@@ -74,15 +69,15 @@ var DailyCheckInoutReport = {
             thiTruongText = cbo.options[cbo.selectedIndex].text;
         }
 
-        var dungDuLieuHieuChinh =
-            document.getElementById("chk_Edit").checked;
+        // var dungDuLieuHieuChinh =
+        //     document.getElementById("chk_Edit").checked;
         var cboViTri = document.getElementById("cbo_ViTri");
         var viTri = cboViTri ? cboViTri.value : "";
 
         var where = [
             ["nam", "=", nam],
-            ["thang", "=", thang],
-            ["dulieu", "=", dungDuLieuHieuChinh ? 1 : 0],
+            ["thang", "=", thang]
+            //["dulieu", "=", dungDuLieuHieuChinh ? 1 : 0],
         ];
 
         if (viTri) {
@@ -132,7 +127,7 @@ var DailyCheckInoutReport = {
     renderReport: function (data, nam, thang, thiTruong, thiTruongText) {
         var win = window.open(
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/DailyCheckInoutReport.html"
+            n$.app.appid + "/DailyCheckInoutReport.html?v=20261114.1"
         );
 
         if (!win) {
@@ -394,7 +389,7 @@ var DailyCheckInoutReport = {
                 addCell(rec.sonha);                  // 9  Số nhà
                 addCell(rec.duong);                  // 10 Đường
                 addCell(rec.huyen);                  // 11 Xã/Phường
-                addCell(rec.tenkhuvuc);              // 12 Tỉnh/Thành (cũ)
+                addCell(rec.tenthitruong);              // 12 Tỉnh/Thành (cũ)
                 addCell(gioLamViec, "center");       // 13 Giờ làm việc
 
                 /* Ký hiệu chấm công (không còn ca thẳng / ca gãy, một ngày có thể check nhiều lần):

@@ -85,26 +85,27 @@ var MonthlyMS01Report = {
         // danh sách khu vực (tài khoản có giới hạn khu vực thì chỉ thấy khu vực của mình)
         var regions = [];
         try {
-            var opt = { select: "makhuvuc,tenkhuvuc,stt", orderby: "stt,tenkhuvuc", limit: 5000 };
+            var opt = { select: "makhuvuc,tenkhuvuc,tenthitruong,thitruong,stt", orderby: "stt,thitruong", limit: 5000 };
            // if (n$.user.orgs) opt.where = [["makhuvuc", "in", n$.user.orgs]];
             regions = await self.sel("khuvuc", opt);
         } catch (e) {
             NUT.notify(e.message, "red");
-            return;
         }
 
         var kvOptions = "<option value=''>-- Tất cả --</option>" + regions.map(function (r) {
-            return "<option value='" + U.esc(r.makhuvuc) + "'>" + U.esc(r.tenkhuvuc || r.makhuvuc) + "</option>";
+            return "<option value='" + U.esc(r.makhuvuc) + "'>" + U.esc(r.thitruong) + "</option>";
         }).join("");
 
         NUT.w2popup.open({
             title: "📜 <i>Monthly MS01 - Báo cáo kết quả làm việc</i>",
             modal: true,
-            width: 420,
-            height: 280,
+            width: 520,
+            height: 600,
 
             body:
-                "<table style='margin:auto'>" +
+                "<table style='margin:auto;width:100%'>" +
+                "<tr><td colspan='4'><input id='chk_MS01Blank' type='checkbox' onchange='MonthlyMS01Report.toggleBlank(this.checked)'>" +
+                    "<label for='chk_MS01Blank'>In bảng trắng</label></td></tr>" +
                 "<tr>" +
                     "<td>Năm</td>" +
                     "<td><input id='num_Year' type='number' style='width:75px' value='" + now.getFullYear() + "'></td>" +
@@ -112,6 +113,7 @@ var MonthlyMS01Report = {
                     "<td><input id='num_Month' type='number' min='1' max='12' style='width:55px' value='" + (now.getMonth() + 1) + "'></td>" +
                 "</tr>" +
                 "<tr><td>Đối tác</td><td colspan='3'>" + self.madoitac + "</td></tr>" +
+                "<tbody id='ms01_DataFields'>" +
                 "<tr>" +
                     "<td>Khu vực</td>" +
                     "<td colspan='3'><select id='cbo_KhuVuc' style='width:250px' onchange='MonthlyMS01Report.loadNhanVien(this.value)'>" + kvOptions + "</select></td>" +
@@ -120,18 +122,45 @@ var MonthlyMS01Report = {
                     "<td>Nhân viên</td>" +
                     "<td colspan='3'><select id='cbo_NhanVien' style='width:250px' disabled><option value=''>-- Chọn khu vực trước --</option></select></td>" +
                 "</tr>" +
-                "<tr>" +
-                    "<td colspan='4'>" +
-                        "<input id='chk_Edit' type='checkbox'>" +
-                        "<label for='chk_Edit'>Dùng dữ liệu hiệu chỉnh</label>" +
-                    "</td>" +
-                "</tr>" +
-                "</table>",
+                "</tbody>" +
+                "<tbody id='ms01_BlankFields' hidden>" +
+                    self.blankFields.map(function (f) {
+                        return "<tr><td colspan='2'><label for='ms01_blank_" + f.key + "'>" + f.label + "</label></td>" +
+                            "<td colspan='2'><input class='w2ui-input' id='ms01_blank_" + f.key + "' type='" + (f.type || "text") +
+                            "' style='width:100%' value='" + U.esc(f.value || "") + "'></td></tr>";
+                    }).join("") +
+                    "<tr><td colspan='4'>Bảng số liệu và thông tin nhân viên, điểm bán sẽ để trống.</td></tr>" +
+                "</tbody></table>",
 
             buttons:
                 "<button class='w2ui-btn' onclick='NUT.w2popup.close()'>⛌ Close</button>" +
                 "<button class='w2ui-btn' onclick='MonthlyMS01Report.runReport()'>✔️ Xuất báo cáo</button>"
         });
+    },
+
+    blankFields: [
+        { key: "tl", label: "TL/PG Sup" },
+        { key: "gs", label: "Giám sát khu vực" },
+        { key: "kv", label: "Khu vực/Thị trường" },
+        { key: "hnb", label: "HNB", value: "HNB" },
+        { key: "mahieu", label: "Mã hiệu", value: "QT.01/HNB.TM-01/NVTT" },
+        { key: "bhsd", label: "BH/SĐ", value: "1/0" },
+        { key: "ngay", label: "Ngày", type: "date", value: "2026-05-04" }
+    ],
+
+    toggleBlank: function (checked) {
+        document.getElementById("ms01_DataFields").hidden = checked;
+        document.getElementById("ms01_BlankFields").hidden = !checked;
+    },
+
+    buildBlankModel: function (nam, thang, fields) {
+        var nDays = new Date(nam, thang, 0).getDate();
+        var rows = [];
+        for (var d = 0; d < nDays; d++) rows.push(new Array(32).fill(""));
+        return {
+            nam: nam, thang: thang, nDays: nDays, blank: true, warnings: [],
+            pages: [Object.assign({ rows: rows }, fields)]
+        };
     },
 
     // Chọn khu vực → nạp danh sách nhân viên của khu vực đó (bỏ qua kết quả cũ nếu người dùng đổi khu vực nhanh)
@@ -217,8 +246,20 @@ var MonthlyMS01Report = {
         var nam = Number(document.getElementById("num_Year").value);
         var thang = Number(document.getElementById("num_Month").value);
 
-        if (!nam || !thang || thang < 1 || thang > 12) {
+        if (!Number.isInteger(nam) || nam < 1 || nam > 9999 ||
+            !Number.isInteger(thang) || thang < 1 || thang > 12) {
             NUT.notify("Nhập năm, tháng hợp lệ trước khi thực hiện!", "yellow");
+            return;
+        }
+
+        var blankBox = document.getElementById("chk_MS01Blank");
+        if (blankBox && blankBox.checked) {
+            var fields = {};
+            self.blankFields.forEach(function (f) {
+                fields[f.key] = U.str(document.getElementById("ms01_blank_" + f.key).value);
+            });
+            if (fields.ngay) fields.ngay = fields.ngay.split("-").reverse().join("/");
+            self.openReport(self.buildBlankModel(nam, thang, fields));
             return;
         }
 
@@ -233,10 +274,10 @@ var MonthlyMS01Report = {
             : (kvBox && makhuvuc && kvBox.selectedIndex >= 0 ? kvBox.options[kvBox.selectedIndex].text : "");
 
         var manv = U.str((document.getElementById("cbo_NhanVien") || {}).value);
-        var dulieu = document.getElementById("chk_Edit").checked ? 1 : 0;
+       // var dulieu = document.getElementById("chk_Edit").checked ? 1 : 0;
         var date = nam + "-" + U.pad2(thang) + "-15";
 
-        var where = [["nam", "=", nam], ["thang", "=", thang], ["madoitac", "=", self.madoitac], ["dulieu", "=", dulieu]];
+        var where = [["nam", "=", nam], ["thang", "=", thang], ["madoitac", "=", self.madoitac] /*, ["dulieu", "=", dulieu] */];
         if (makhuvuc) where.push(["makhuvuc", "=", makhuvuc]);
        // else if (n$.user.orgs) where.push(["makhuvuc", "in", n$.user.orgs]);
         if (manv) where.push(["manhanvien", "=", manv]);
@@ -258,7 +299,7 @@ var MonthlyMS01Report = {
                 }),
                 self.sel("chitieu", { limit: 20000, where: nvWhere }),
                 // công + sản lượng két theo nhân viên cho khối "Tổng kết tháng" (cùng nguồn với báo cáo MS03)
-                self.sel(self.viewName, { limit: 20000, where: nvWhere.concat([["dulieu", "=", dulieu]]) }),
+                self.sel(self.viewName, { limit: 20000, where: nvWhere }),
                 self.sel("sanpham", {
                     select: "masanpham,tensanpham,trongdiem,ket",
                     limit: 5000,
@@ -450,7 +491,7 @@ var MonthlyMS01Report = {
             var sum = { groups: [], tot: { kh: 0, ban: 0 }, cong: v ? U.num(v.cong) : 0, hasView: !!v, hasCt: !!ct };
             G.forEach(function (g, i) {
                 var kh = ct ? ct[i] : 0, ban = v ? Math.max(0, U.num(v[g.key + "_ket"])) : 0;
-                sum.groups.push({ key: g.key, kh: kh, ban: ban, ch: ban - kh, show: kh > 0 || ban > 0 });
+                sum.groups.push({ key: g.key, kh: kh, ban: ban, show: kh > 0 || ban > 0 });
                 sum.tot.kh += kh;
                 sum.tot.ban += ban;
             });
@@ -462,7 +503,8 @@ var MonthlyMS01Report = {
 
             return {
                 ma: p.ma,
-                kv: U.str(info.tenkhuvuc) || inp.thiTruongText,
+               // kv: U.str(info.tenkhuvuc,"/",U.str(info.tenthitruong)) || "",
+                kv: [U.str(info.tenkhuvuc),U.str(info.tenthitruong)].filter(Boolean).join(" / "),
                 nv: U.str(info.hotenNVTT) || U.str(info.hoten) || p.ma,
                 tl: role.TL[kv] || "",
                 tf: role.TF[kv] || "",
@@ -523,8 +565,8 @@ var MonthlyMS01Report = {
                 try {
                     self.draw(win.document, model);
                 } catch (err) {
-                   // console.error(err);
-                   // NUT.notify("Lỗi vẽ báo cáo: " + err.message, "red");
+                    console.error(err);
+                    NUT.notify("Lỗi vẽ báo cáo: " + err.message, "red");
                 }
             } else if (++tries > 100) {
                 clearInterval(timer);
@@ -546,8 +588,10 @@ var MonthlyMS01Report = {
         var THU = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
 
         function setF(t, name, value) {
-            var e = t.querySelector('[data-f="' + name + '"]');
-            if (e) e.textContent = value === null || value === undefined ? "" : String(value);
+            var elements = t.querySelectorAll('[data-f="' + name + '"]');
+            Array.prototype.forEach.call(elements, function (e) {
+                e.textContent = value === null || value === undefined ? "" : String(value);
+            });
         }
         function setS(t, name, value) {
             var e = t.querySelector('[data-s="' + name + '"]');
@@ -556,6 +600,8 @@ var MonthlyMS01Report = {
 
         m.pages.forEach(function (pg) {
             var t = proto.cloneNode(true);
+            var template = doc.defaultView && doc.defaultView.MS01Template;
+            if (template) template.layout(t, m.nDays);
 
             setF(t, "thang", U.pad2(m.thang));
             setF(t, "nam", m.nam);
@@ -568,6 +614,11 @@ var MonthlyMS01Report = {
             setF(t, "diachi", pg.diachi);
             setF(t, "ma", pg.maDiemBan);
             setF(t, "gio", pg.gio);
+            if (m.blank) {
+                ["hnb", "mahieu", "bhsd", "ngay"].forEach(function (name) {
+                    setF(t, name, pg[name]);
+                });
+            }
 
             // các dòng ngày
             var trs = t.querySelectorAll("tbody tr.d");
@@ -586,20 +637,27 @@ var MonthlyMS01Report = {
 
             // ô gộp dọc co lại theo số ngày của tháng (28–31)
             var xn = t.querySelector("td.xn");
-            if (xn) xn.rowSpan = m.nDays;
+            if (xn) xn.rowSpan = m.nDays + 2;
             var sgb = t.querySelector("td.sgb");
             if (sgb) sgb.rowSpan = m.nDays - 11;
 
             // khối tổng kết tháng
+            if (m.blank) {
+                Array.prototype.forEach.call(t.querySelectorAll("[data-s], [data-total]"), function (e) {
+                    e.textContent = "";
+                });
+                box.appendChild(t);
+                return;
+            }
             var s = pg.sum;
             s.groups.forEach(function (g) {
                 setS(t, "kh-" + g.key, g.kh > 0 ? U.q(g.kh) : "");
                 setS(t, "ban-" + g.key, g.show ? U.q(g.ban) : "");
-                setS(t, "ch-" + g.key, g.show ? U.q(g.ch) : "");
+                setS(t, "ch-" + g.key, "");
             });
             setS(t, "kh-tot", s.hasCt ? U.q(s.tot.kh) : "");
             setS(t, "ban-tot", s.hasView ? U.q(s.tot.ban) : "");
-            setS(t, "ch-tot", s.hasCt || s.hasView ? U.q(s.tot.ban - s.tot.kh) : "");
+            setS(t, "ch-tot", "");
             setS(t, "congchuan", self.dinhMucCong);
             setS(t, "congthuc", s.hasView ? U.q(s.cong) : "");
 
@@ -608,7 +666,7 @@ var MonthlyMS01Report = {
 
         var warn = doc.getElementById("divWarn");
         if (warn) {
-            if (m.warnings.length) {
+            if (m.warnings && m.warnings.length) {
                 warn.innerHTML = m.warnings.map(function (w) { return "⚠ " + U.esc(w); }).join("<br>");
                 warn.hidden = false;
             } else {

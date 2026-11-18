@@ -117,11 +117,8 @@ var MonthlyMS03Report = {
 
         self.url = NUT.services[self.serviceIndex].url;
 
-        var khuVuc = n$.user.orgs
-            ? "<tr><td>Khu vực</td><td colspan='3'>" +
-                (n$.user.kvhcnames || "") +
-                "</td></tr>"
-            : "<tr><td>Thị trường</td><td colspan='3'>" +
+        var khuVuc = 
+            "<tr><td>Khu vực</td><td colspan='3'>" +
                 NUT.outerCboHTML(
                     NUT.domains[self.domainThiTruong].items,
                     "cbo_ThiTruong"
@@ -160,10 +157,7 @@ var MonthlyMS03Report = {
                         "</select>" +
                     "</td>" +
                 "</tr>" +
-                "<tr><td colspan='4'>" +
-                    "<input id='chk_Edit' type='checkbox'>" +
-                    "<label for='chk_Edit'>Dùng dữ liệu hiệu chỉnh</label>" +
-                "</td></tr>" +
+               
                 "</table>",
 
             buttons:
@@ -280,16 +274,16 @@ var MonthlyMS03Report = {
         var vitrilv = document
             .getElementById("cbo_ViTriLv").value;
 
-        var dulieu = document
-            .getElementById("chk_Edit").checked ? 1 : 0;
+        // var dulieu = document
+        //     .getElementById("chk_Edit").checked ? 1 : 0;
 
         var date = nam + "-" + U.pad2(thang) + "-15";
 
         var where = [
             ["nam", "=", nam],
             ["thang", "=", thang],
-            ["madoitac", "=", self.madoitac],
-            ["dulieu", "=", dulieu]
+            ["madoitac", "=", self.madoitac]
+            //["dulieu", "=", dulieu]
         ];
 
         if (vitrilv === "BA") {
@@ -380,8 +374,8 @@ var MonthlyMS03Report = {
                     where: [
                         ["nam", "=", nam],
                         ["thang", "=", thang],
-                        ["madoitac", "=", self.madoitac],
-                        ["dulieu", "=", dulieu]
+                        ["madoitac", "=", self.madoitac]
+                        //["dulieu", "=", dulieu]
                     ]
                 })
             ]);
@@ -672,7 +666,7 @@ var MonthlyMS03Report = {
                 sonha: field("sonha"),
                 duong: field("duong"),
                 huyen: field("huyen"),
-                tinh: U.str(info.tenkhuvuc),
+                tinh: U.str(info.tenthitruong),
                 dinhMuc: self.dinhMucCong,
                 thucHien: cong[e.ma] || 0,
                 hasCt: !!ct,
@@ -800,7 +794,7 @@ var MonthlyMS03Report = {
 
         var win = NUT.openReportWindow(self,
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/" + self.template
+            n$.app.appid + "/" + self.template + "?v=20261114.1"
         );
 
         if (!win) {

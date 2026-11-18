@@ -45,7 +45,7 @@ var DailyChamCongReport = {
                     "<td><input id='num_Month' type='number' min='1' max='12' style='width:55px' value='" + (now.getMonth() + 1) + "'></td>" +
                 "</tr>" +
                 "<tr>" +
-                    "<td>Thị trường</td>" +
+                    "<td>Khu vực</td>" +
                     "<td colspan='3'>" +
                         NUT.outerCboHTML(NUT.domains[1201].items, "cbo_ThiTruong") +
                     "</td>" +
@@ -60,12 +60,7 @@ var DailyChamCongReport = {
                         "</select>" +
                     "</td>" +
                 "</tr>" +
-                "<tr>" +
-                    "<td colspan='4'>" +
-                        "<input id='chk_Edit' type='checkbox'>" +
-                        "<label for='chk_Edit'>Dùng dữ liệu hiệu chỉnh</label>" +
-                    "</td>" +
-                "</tr>" +
+             
                 "</table>",
 
             buttons:
@@ -85,14 +80,14 @@ var DailyChamCongReport = {
         }
 
         var cbo = document.getElementById("cbo_ThiTruong");
-        var thiTruong = cbo ? cbo.value : "";
+        var thiTruong = cbo ? String(cbo.value).trim() : "";
         var thiTruongText = "";
         if (cbo && cbo.options && cbo.selectedIndex >= 0 && thiTruong) {
             thiTruongText = cbo.options[cbo.selectedIndex].text;
         }
 
         var viTri = document.getElementById("cbo_ViTri").value;
-        var dungDuLieuHieuChinh = document.getElementById("chk_Edit").checked ? 1 : 0;
+       // var dungDuLieuHieuChinh = document.getElementById("chk_Edit").checked ? 1 : 0;
         var date = nam + "-" + String(thang).padStart(2, "0") + "-15";
 
         // 1. Lookup TL / TF / GDCN
@@ -123,20 +118,12 @@ var DailyChamCongReport = {
             // 2. Filter giống code 2
             var where = [
                 ["nam", "=", nam],
-                ["thang", "=", thang],
+                ["thang", "=", thang]
                // ["madoitac", "=", "HABECO"],
-                ["dulieu", "=", dungDuLieuHieuChinh]
+                //["dulieu", "=", dungDuLieuHieuChinh]
             ];
 
-            // Quyền khu vực hoặc lọc thị trường
-            // if (n$.user.orgs) {
-            //     where.push(["makhuvuc", "in", n$.user.orgs]);
-
-            // Vị trí: BA exact, BA_ dùng like (giống code 2)
-            if (thiTruong) {
-                where.push(["thitruong", "=", thiTruong]);
-            }
-
+            // Lọc thị trường trên dữ liệu trả về, giống DailyCheckInoutReport.
             // Lọc vị trí
 
             if (viTri === "BA") {
@@ -153,13 +140,27 @@ var DailyChamCongReport = {
                 orderby: "sttkv,stt,manhanvien,madiemban,ngay,lan",
                 limit: 20000
             }, function (res) {
-                if (!(res.success && res.result && res.result.length)) {
+                if (!res.success) {
+                    NUT.notify("Không đọc được dữ liệu chamcong_v.", "red");
+                    return;
+                }
+                var data = res.result || [];
+                if (data.length >= 20000) {
+                    NUT.notify("Dữ liệu tháng chạm giới hạn 20000 dòng. Hãy chọn thêm vị trí để tránh xuất thiếu dữ liệu.", "red");
+                    return;
+                }
+                if (thiTruong) {
+                    data = data.filter(function (rec) {
+                        return String(rec.thitruong == null ? "" : rec.thitruong).trim() === thiTruong;
+                    });
+                }
+                if (!data.length) {
                     NUT.notify("Không có dữ liệu báo cáo!", "yellow");
                     return;
                 }
 
                 DailyChamCongReport.renderReport(
-                    res.result,
+                    data,
                     nam,
                     thang,
                     thiTruong,
@@ -187,7 +188,7 @@ var DailyChamCongReport = {
 
         var win = window.open(
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/DailyChamCongReport.html"
+            n$.app.appid + "/DailyChamCongReport.html?v=20261114.1"
         );
 
         if (!win) {
@@ -446,7 +447,7 @@ var DailyChamCongReport = {
                 addCell(rec.sonha || "");
                 addCell(rec.duong || "");
                 addCell(rec.huyen || "");
-                addCell(rec.tenkhuvuc || "");
+                addCell(rec.tenthitruong || "");
 
                 // Ô từng ngày
                 for (var d = 1; d <= soNgay; d++) {

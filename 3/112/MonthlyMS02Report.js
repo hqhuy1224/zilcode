@@ -13,7 +13,7 @@ var MonthlyMS02Report={
 			modal:true,
 			width: 360,
 			height: 200,
-			body: "<table style='margin:auto'><tr><td>Năm</td><td><input id='num_Year' style='width:60px' type='number' value='"+now.getFullYear()+"'/></td><td>Tháng</td><td><input id='num_Month' style='width:60px' type='number' value='"+(now.getMonth()+1)+"'/></td></tr><tr><td>Đối tác</td><td>HABECO</td>"+(n$.user.tag?"<td></td><td>":"<td>Thị trường</td><td>"+NUT.outerCboHTML(NUT.domains[1201].items,"cbo_ThiTruong"))+"</td></tr><tr><td>Vị trí</td><td colspan='3'><select id='cbo_ViTriLv'><option value='' selected>---Tất cả--</option><option value='BA'>BA</option><option value='BA_'>BA_PartTime</option></select></td></tr><tr><td></td><td colspan='3'><input id='chk_Edit' type='checkbox'/><label for='chk_Edit'>Dùng dữ liệu Hiệu chỉnh</label></td></tr></table>",
+			body: "<table style='margin:auto'><tr><td>Năm</td><td><input id='num_Year' style='width:60px' type='number' value='"+now.getFullYear()+"'/></td><td>Tháng</td><td><input id='num_Month' style='width:60px' type='number' value='"+(now.getMonth()+1)+"'/></td></tr><tr><td>Đối tác</td><td>HABECO</td>"+(n$.user.tag?"<td></td><td>":"<td>Khu vực</td><td>"+NUT.outerCboHTML(NUT.domains[1201].items,"cbo_ThiTruong"))+"</td></tr><tr><td>Vị trí</td><td colspan='3'><select id='cbo_ViTriLv'><option value='' selected>---Tất cả--</option><option value='BA'>BA</option><option value='BA_'>BA_PartTime</option></select></td></tr><tr><td></td><td colspan='3'></td></tr></table>",
 			buttons: '<button class="w2ui-btn" onclick="NUT.w2popup.close()">⛌ Close</button><button class="w2ui-btn" onclick="MonthlyMS02Report.runReport()">✔️ Xuất báo cáo</button>'
 		})
 	},
@@ -26,17 +26,18 @@ var MonthlyMS02Report={
 		var nam=num_Year.value;
 		var thang=num_Month.value;
 		var vitrilv=document.getElementById("cbo_ViTriLv").value;
-		var thiTruongSel=(typeof cbo_ThiTruong!="undefined"&&document.getElementById("cbo_ThiTruong"))?cbo_ThiTruong.value:"";
+		var cboThiTruong=document.getElementById("cbo_ThiTruong");
+		var thiTruongSel=cboThiTruong?String(cboThiTruong.value).trim():"";
 
 		// Bộ lọc: chỉ thêm khi người dùng có chọn (trước đây bị tắt nên chọn thị trường / vị trí không có tác dụng)
 		var where=[
 			["nam","=",nam],
-			["thang","=",thang],
-			["madoitac","=","HABECO"],
-			["dulieu","=",chk_Edit.checked?1:0]
+			["thang","=",thang]
+			//["madoitac","=","HABECO"],
+			//["dulieu","=",chk_Edit.checked?1:0]
 		];
 		//if(n$.user.orgs)where.push(["makhuvuc","in",n$.user.orgs]);
-		if(thiTruongSel)where.push(["thitruong","=",thiTruongSel]);
+		// Lọc thị trường trên dữ liệu trả về, giống DailyCheckInoutReport.
 		if(vitrilv=="BA")where.push(["vitrilv","=","BA"]);
 		else if(vitrilv)where.push(["vitrilv","like",vitrilv+"*"]);
 
@@ -51,19 +52,23 @@ var MonthlyMS02Report={
 				NUT.notify("Không đọc được dữ liệu chamcong_v."+(typeof res.result=="string"?" "+res.result:""),"red");
 				return;
 			}
-			if(!res.result.length){
+			var data=res.result||[];
+			// chạm giới hạn dòng thì số liệu cuối danh sách bị thiếu: báo ngay thay vì xuất báo cáo thiếu
+			if(data.length>=LIMIT){
+				NUT.notify("Dữ liệu tháng chạm giới hạn "+LIMIT+" dòng. Hãy chọn thêm vị trí để tránh xuất thiếu dữ liệu.","red");
+				return;
+			}
+			if(thiTruongSel)data=data.filter(function(rec){
+				return String(rec.thitruong==null?"":rec.thitruong).trim()===thiTruongSel;
+			});
+			if(!data.length){
 				NUT.notify("Không có dữ liệu báo cáo!","yellow");
 				return;
 			}
-			// chạm giới hạn dòng thì số liệu cuối danh sách bị thiếu: báo ngay thay vì xuất báo cáo thiếu
-			if(res.result.length>=LIMIT){
-				NUT.notify("Dữ liệu vượt "+LIMIT+" dòng nên báo cáo sẽ thiếu. Hãy chọn thị trường hoặc vị trí để thu hẹp.","red");
-				return;
-			}
-			var win=window.open("site/"+n$.user.siteid+"/"+n$.app.appid+"/MonthlyMS02ReportBA.html");
+			var win=window.open("site/"+n$.user.siteid+"/"+n$.app.appid+"/Monthlyms02reportba.html?v=20261114.1");
 			if(!win){NUT.notify("Trình duyệt đã chặn cửa sổ báo cáo!","yellow");return;}
 			win.onload=function(){
-				MonthlyMS02Report.render(win,res.result,parseInt(nam,10),parseInt(thang,10),thiTruongSel);
+				MonthlyMS02Report.render(win,data,parseInt(nam,10),parseInt(thang,10),thiTruongSel);
 			};
 		});
 	},
@@ -100,7 +105,7 @@ var MonthlyMS02Report={
 
 			var e=empMap[rec.manhanvien];
 			if(!e){
-				e={ma:rec.manhanvien,ten:rec.hotenNVTT||rec.hotennvtt||rec.hoten,makhuvuc:rec.makhuvuc,tenkhuvuc:rec.tenkhuvuc,points:[],pt:{},days:[]};
+				e={ma:rec.manhanvien,ten:rec.hotenNVTT||rec.hotennvtt||rec.hoten,makhuvuc:rec.makhuvuc,tenkhuvuc:rec.tenkhuvuc,tenthitruong: rec.tenthitruong ,points:[],pt:{},days:[]};
 				for(var d=0;d<=31;d++)e.days.push({cong:0,code:""});
 				empMap[rec.manhanvien]=e;
 				emps.push(e);
@@ -177,7 +182,7 @@ var MonthlyMS02Report={
 
 			html+='<tr>'
 				+'<td>'+(i+1)+'</td>'
-				+'<td>'+esc(e.tenkhuvuc)+'</td>'
+				+'<td>'+esc(e.tenthitruong)+'</td>'
 				+'<td>'+esc(ql)+'</td>'
 				+'<td class="l">'+esc(e.ten)+'</td>'
 				+'<td>'+pts("loaihinh")+'</td>'
