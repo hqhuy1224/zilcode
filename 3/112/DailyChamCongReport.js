@@ -20,7 +20,7 @@ var DailyChamCongReport = {
 
     holidays: ["01-01", "04-30", "05-01", "09-02"],
 
-    widthFixed: [30, 85, 80, 130, 180, 50, 65, 140, 65, 260, 100, 80],
+    widthFixed: [30, 80, 75, 110, 110, 50, 65, 140, 65, 160, 100, 80],
     widthDay: 44,
     widthTotal: [70, 70, 80],
     widthLoai: 38,
@@ -188,7 +188,7 @@ var DailyChamCongReport = {
 
         var win = window.open(
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/DailyChamCongReport.html?v=20261114.1"
+            n$.app.appid + "/DailyChamCongReport.html?v=20261119.1"
         );
 
         if (!win) {
@@ -308,6 +308,9 @@ var DailyChamCongReport = {
                 cg.appendChild(col);
             });
             table.insertBefore(cg, table.firstChild);
+            table.style.width = widths.reduce(function (total, width) {
+                return total + width;
+            }, 0) + "px";
 
             /* ========== HEADER ========== */
             var fixedBefore = [
@@ -415,7 +418,9 @@ var DailyChamCongReport = {
             function createRow(rec) {
                 finishRow();
 
-                row = doc.createElement("tr");
+                row = doc.createElement("tr" );
+                row.setAttribute("data-report-province", rec.tenthitruong || rec.thitruong || "" );
+                row.setAttribute("data-province-columns", "12" );
                 body.appendChild(row);
                 dayCells = Object.create(null);
                 stt++;

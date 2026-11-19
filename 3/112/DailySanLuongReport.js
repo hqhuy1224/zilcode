@@ -43,10 +43,8 @@ var DailySanLuongReport = {
     },
 
     unmapped: {},
-    focusKeys: {},
-
     widthFixed: [
-        30, 85, 80, 130, 170, 60,
+        30, 80, 75, 110, 110, 60,
         65, 140, 55, 160, 90, 70
     ],
 
@@ -56,90 +54,10 @@ var DailySanLuongReport = {
     widthSum: 46,
     widthCT: 58,
 
-    /*
-     * Đọc cờ trọng điểm từ DB.
-     * Gộp theo nhóm như các báo cáo tháng:
-     * Bold chai/lon cùng nhóm, Light chai/lon cùng nhóm.
-     */
-    loadFocus: function (callback) {
-        var self = DailySanLuongReport;
-
-        NUT.ds.select({
-            url: self.url + "data/sanpham",
-            limit: 5000,
-            select: "masanpham,trongdiem",
-            where: [
-                ["madoitac", "=", "HABECO"]
-            ]
-        }, function (res) {
-            if (
-                !res ||
-                !res.success ||
-                !Array.isArray(res.result) ||
-                res.result.length >= 5000
-            ) {
-                NUT.alert(
-                    "Không đọc đủ danh mục sản phẩm/trọng điểm. " +
-                    "Dừng xuất báo cáo.",
-                    "red"
-                );
-                return;
-            }
-
-            var flags = {};
-            var known = false;
-
-            res.result.forEach(function (p) {
-                if (!Object.prototype.hasOwnProperty.call(
-                    p,
-                    "trongdiem"
-                )) {
-                    return;
-                }
-
-                known = true;
-
-                var v = p.trongdiem;
-                var marked =
-                    v === true ||
-                    v === 1 ||
-                    v === "1" ||
-                    String(v).toLowerCase() === "true";
-
-                if (!marked) return;
-
-                var code = String(p.masanpham || "")
-                    .trim()
-                    .toUpperCase();
-
-                var key = self.maSanPhamCT[code];
-
-                if (!key) return;
-
-                key = self.ctMerge[key] || key;
-                flags[key] = true;
-            });
-
-            if (!known) {
-                NUT.alert(
-                    "DB không trả cột sanpham.trongdiem. " +
-                    "Không tự chọn sản phẩm trọng điểm.",
-                    "red"
-                );
-                return;
-            }
-
-            self.focusKeys = flags;
-
-            self.products.forEach(function (p) {
-                var group = self.ctMerge[p.key] || p.key;
-                p.td = !!flags[group];
-            });
-
-            callback();
-        });
+    // Accept database flags and the "x" marker used in target spreadsheets.
+    isFocus: function (value) {
+        return /^(1|true|x)$/i.test(String(value == null ? "" : value).trim());
     },
-
     productKey: function (masanpham) {
         var self = DailySanLuongReport;
 
@@ -539,7 +457,7 @@ var DailySanLuongReport = {
 
                     self.unmapped = {};
 
-                    self.loadFocus(function () {
+
                         self.attachSoldQty(
                             data,
                             function (rowsWithSold) {
@@ -566,7 +484,6 @@ var DailySanLuongReport = {
                                 );
                             }
                         );
-                    });
                 });
             };
 
@@ -635,11 +552,16 @@ var DailySanLuongReport = {
                         if (!key) return;
 
                         var ct = lookupChiTieu[ma] ||
-                            (lookupChiTieu[ma] = {});
+                            (lookupChiTieu[ma] = { focusKeys: {}, focusTargets: {} });
 
                         ct[key] =
                             (ct[key] || 0) +
                             (Number(d.soluong) || 0);
+                        if (self.isFocus(d.trongdiem)) {
+                            ct.focusKeys[key] = true;
+                            ct.focusTargets[key] = (ct.focusTargets[key] || 0) +
+                                (Number(d.soluong) || 0);
+                        }
                     });
 
                     loadChamCong(lookupChiTieu);
@@ -662,7 +584,7 @@ var DailySanLuongReport = {
 
         var win = window.open(
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/DailySanLuongReport.html?v=20261114.1"
+            n$.app.appid + "/DailySanLuongReport.html?v=20261119.1"
         );
 
         if (!win) {
@@ -720,7 +642,7 @@ var DailySanLuongReport = {
             }
 
             function r1(v) {
-                return String(Math.round(v * 10) / 10);
+                return (Math.round(v * 10) / 10).toFixed(1).replace(".", ",");
             }
 
             function r2(v) {
@@ -840,6 +762,8 @@ var DailySanLuongReport = {
                 var g = groups[key];
                 var sum = zeros(NP);
                 var tdSum = 0;
+                var employeeTarget = lookupChiTieu[String(g.info.manhanvien)];
+                var focusKeys = employeeTarget ? employeeTarget.focusKeys : {};
 
                 for (var d = 1; d <= soNgay; d++) {
                     var arr = g.days[d];
@@ -867,7 +791,7 @@ var DailySanLuongReport = {
                     grand += sum[j];
                     totalSum[j] += sum[j];
 
-                    if (P[j].td) {
+                    if (focusKeys[self.ctMerge[P[j].key] || P[j].key]) {
                         tdSum += sum[j];
                     }
                 }
@@ -934,11 +858,11 @@ var DailySanLuongReport = {
                 var focusNames = [];
 
                 CT.forEach(function (c) {
-                    if (!self.focusKeys[c.key]) return;
+                    if (!ct.focusKeys[c.key]) return;
 
-                    sumcttd += num(ct[c.key]);
+                    sumcttd += num(ct.focusTargets[c.key]);
 
-                    if (num(ct[c.key]) > 0) {
+                    if (num(ct.focusTargets[c.key]) > 0) {
                         var name =
                             c.key === "keg" ? "K" :
                             c.key === "hanoiprel" ? "Pre lon" :
@@ -1008,6 +932,9 @@ var DailySanLuongReport = {
             });
 
             table.insertBefore(cg, table.firstChild);
+            table.style.width = widths.reduce(function (total, width) {
+                return total + width;
+            }, 0) + "px";
 
             var fixedBefore = [
                 "STT",
@@ -1220,12 +1147,12 @@ var DailySanLuongReport = {
                 // 2. Tổng tháng.
                 for (var j = 0; j < NP; j++) {
                     addCell(
-                        r.sum[j] ? r1(r.sum[j]) : "",
+                        r1(r.sum[j]),
                         "qd"
                     );
                 }
 
-                addCell((Math.round(r.grand * 10) / 10).toFixed(1).replace(".", ","), "qd tot");
+                addCell(r1(r.grand), "qd tot");
                 addCell(r.pct ? r.pct.dat : "", "pc");
 
                 // 3. Sản lượng trọng điểm.
@@ -1290,6 +1217,8 @@ var DailySanLuongReport = {
                     addSumCells(r, addCell);
                 }
 
+                row.setAttribute("data-report-province", rec.tenthitruong || rec.thitruong || "" );
+                row.setAttribute("data-province-columns", "12" );
                 body.appendChild(row);
             });
 
@@ -1329,11 +1258,11 @@ var DailySanLuongReport = {
 
                 for (var j = 0; j < NP; j++) {
                     addTotal(
-                        totalSum[j] ? r1(totalSum[j]) : ""
+                        r1(totalSum[j])
                     );
                 }
 
-                addTotal((Math.round(grandTotal * 10) / 10).toFixed(1).replace(".", ","));
+                addTotal(r1(grandTotal));
                 addTotal(pct(grandTotal, ctSumTot));
 
                 addTotal(ctTdTot || "");

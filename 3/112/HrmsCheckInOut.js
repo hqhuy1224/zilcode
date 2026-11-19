@@ -128,7 +128,7 @@ var HrmsCheckInOut = (function () {
         state.lookup = {}; state.rows.forEach(function (r) { state.lookup[String(r.idchamcong)] = r; });
         partnerCache = {};
         await loadTarget(state.date);
-        await loadSales(state.rows);
+        await Promise.all([loadSales(state.rows), loadPointNames(state.rows)]);
     }
     async function loadTarget(d) {
         state.target = { partner: '', missing: false, err: '' };
@@ -159,11 +159,17 @@ var HrmsCheckInOut = (function () {
     // đối tác đi theo sản phẩm: danh mục là toàn bộ bảng sanpham, mỗi dòng có madoitac riêng
     async function loadProducts() {
         if (state.catalog) return;
-        var rows = await select(api.config.productTable, { select: 'masanpham,tensanpham,trongdiem,madoitac' });
+        var rows = await select(api.config.productTable, { select: 'masanpham,tensanpham,trongdiem,madoitac,ket,thutu,hienthi' });
+        var ord = function (x) { var t = x.thutu == null || x.thutu === '' ? NaN : Number(x.thutu); return isFinite(t) ? t : Infinity; };
         state.catalog = rows.sort(function (a, b) {
-            return (b.trongdiem ? 1 : 0) - (a.trongdiem ? 1 : 0) || String(a.madoitac || '').localeCompare(String(b.madoitac || '')) || String(a.masanpham).localeCompare(String(b.masanpham));
-        }).map(function (x) { return { ma: x.masanpham, ten: x.tensanpham || x.masanpham, td: !!x.trongdiem, dt: x.madoitac || '' }; });
+            var oa = ord(a), ob = ord(b);
+            return (oa === ob ? 0 : oa < ob ? -1 : 1) || String(a.tensanpham || a.masanpham).localeCompare(String(b.tensanpham || b.masanpham));
+        }).map(function (x) {
+            return { ma: x.masanpham, ten: x.tensanpham || x.masanpham, td: !!x.trongdiem, dt: x.madoitac || '', kt: Number(x.ket) || 0, an: hiddenFlag(x.hienthi) };
+        });
     }
+    // hienthi = 0 → không cho chọn thêm; dữ liệu đã nhập trước đó vẫn hiện bình thường
+    function hiddenFlag(v) { return v === false || v === 0 || v === '0' || v === 'false'; }
     // danh mục sản phẩm + mã đã lưu nhưng không còn trong danh mục
     function productsFor(r, s) {
         var list = (state.catalog || []).slice();
@@ -224,6 +230,21 @@ var HrmsCheckInOut = (function () {
         var hit = lines.map(function (x) { return (state.catalog.filter(function (p) { return p.ma === x.masanpham; })[0] || {}).dt; }).filter(Boolean)[0] || '';
         partnerCache[key] = { v: hit }; return hit;
     }
+    // ---------- Tên điểm bán (chỉ hiện tên, không hiện mã) ----------
+    function pointName(code) {
+        if (code == null || code === '') return '';
+        return state.pointNames[code] || state.pointNames[String(code)] || String(code);
+    }
+    async function loadPointNames(rows) {
+        if (!api.config.pointTable) return;
+        var need = [];
+        rows.forEach(function (r) { var c = r.madiemban; if (c && !state.pointNames[c] && need.indexOf(c) < 0) need.push(c); });
+        if (!need.length) return;
+        try {
+            var res = await Promise.all(need.map(function (c) { return select(api.config.pointTable, { select: 'madiemban,tendiemban', where: [['madiemban', '=', c]] }); }));
+            res.forEach(function (list) { list.forEach(function (p) { if (p.tendiemban) state.pointNames[p.madiemban] = p.tendiemban; }); });
+        } catch (e) { console.warn('[HrmsCheckInOut] không đọc được tên điểm bán:', e.message); }
+    }
     function record(id) { var r = state.lookup[String(id)]; if (!r) fail('Không tìm thấy bản ghi. Hãy làm mới.'); return r; }
 
     // ---------- Trạng thái một lần chấm công ----------
@@ -233,7 +254,9 @@ var HrmsCheckInOut = (function () {
     function photoState(r) { var i = images(r.hinhanh).length, o = images(r.hinhanh2).length; return { inN: i, outN: o, inOk: i > 0, outOk: !!r.thoigianve && o > 0 }; }
     // ca qua đêm: chỉ lần Check IN của hôm qua chưa Check OUT mới còn hiện để Check OUT; các ca khác của ngày cũ biến mất sau 00:00
     function dayBefore(d) { var x = new Date(d.nam, d.thang - 1, d.ngay - 1); return { nam: x.getFullYear(), thang: x.getMonth() + 1, ngay: x.getDate() }; }
-    function carryOver(r) { return !!r.thoigianden && !isLeave(r) && !r.thoigianve; }
+    var CARRY_UNTIL = 3;
+    function carryOpen() { return new Date().getHours() < CARRY_UNTIL; }
+    function carryOver(r) { return carryOpen() && !!r.thoigianden && !isLeave(r) && !r.thoigianve; }
     function editable(r) {
         var t = today(), k = [r.nam, r.thang, r.ngay].join('-');
         return k === dayKey(t) || (k === dayKey(dayBefore(t)) && carryOver(r));
@@ -246,11 +269,12 @@ var HrmsCheckInOut = (function () {
         var own = rows.filter(function (r) { return !r.carry; });
         return own.length ? Math.max.apply(null, own.map(function (r) { return Number(r.lan) || 0; })) + 1 : 1;
     }
-    // qua 00:00 là sang ngày mới: lần chấm công của ngày cũ không còn hiển thị, không chỉnh sửa được
+    // qua 00:00 là sang ngày mới: lần chấm công của ngày cũ không còn hiển thị, không chỉnh sửa được (trừ ca chưa Check OUT, giữ đến CARRY_UNTIL giờ sáng)
     function dayChanged() { return !!state.date && dayKey(today()) !== dayKey(state.date); }
+    function carryExpired() { return !carryOpen() && state.rows.some(function (r) { return r.carry; }); }
     function staleDay() {
-        if (!dayChanged()) return false;
-        if (!state.form && !state.busy) { NUT.notify('Đã qua 00:00, danh sách chấm công đã chuyển sang ngày mới.', 'yellow'); api.refresh(); }
+        if (!dayChanged() && !carryExpired()) return false;
+        if (!state.form && !state.busy) { NUT.notify('Danh sách chấm công đã chuyển sang ngày mới.', 'yellow'); api.refresh(); }
         return true;
     }
     function ensureToday(cur) {
@@ -259,11 +283,11 @@ var HrmsCheckInOut = (function () {
         }
     }
     api.checkDay = function () {
-        if (!dayChanged() || state.busy || state.refreshing) return;
+        if ((!dayChanged() && !carryExpired()) || state.busy || state.refreshing) return;
         if (state.form) {
             var fr = state.form.id && state.lookup[String(state.form.id)];
             if (fr && editable(fr)) return;
-            if (!state.dayWarned) { state.dayWarned = true; showError('Đã qua 00:00: các lần chấm công của ngày cũ không còn chỉnh sửa được. Đóng form để xem ngày mới.'); }
+            if (!state.dayWarned) { state.dayWarned = true; showError('Ca chấm công này đã hết thời hạn chỉnh sửa (qua 00:00; ca chưa Check OUT chỉ giữ đến 0' + CARRY_UNTIL + ':00). Đóng form để xem ngày mới.'); }
             return;
         }
         api.refresh();
@@ -372,9 +396,19 @@ var HrmsCheckInOut = (function () {
         '.hcio-ro{display:block;padding:4px 6px;text-align:right;font-variant-numeric:tabular-nums;color:#475569;font-weight:600}',
         '.hcio-rmbtn{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:#94a3b8;font:700 12px system-ui;cursor:pointer}.hcio-rmbtn:hover{background:#fee2e2;color:#dc2626}',
         '.hcio-pk{position:absolute;inset:0;z-index:6;background:var(--bg);padding:12px 14px;display:flex;flex-direction:column;gap:8px}.hcio-pk-h{flex:none;display:flex;justify-content:space-between;align-items:center}.hcio-pk-h b{font-size:15px}.hcio-pk input[type=text]{flex:none}',
-        '.hcio-pk-list{flex:1 1 auto;min-height:0;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:10px}',
+        '.hcio-pk-list{flex:1 1 auto;min-height:220px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:10px}',
         '.hcio-pk-i{display:flex;align-items:center;gap:10px;margin:0;padding:8px 10px;border-bottom:1px solid #eef2f6;cursor:pointer}.hcio-pk-i:hover{background:var(--pri-l)}.hcio-pk-i[hidden]{display:none}.hcio-pk-i input{flex:none;width:18px;height:18px;accent-color:var(--pri)}.hcio-pk-i span{flex:1;min-width:0}.hcio-pk-i b{display:block;font-size:13px}.hcio-pk-i small{display:block;font-size:11px;color:var(--mut)}.hcio-pk-i em{font-style:normal;color:#d97706}',
         '.hcio-pk-f{flex:none;display:flex;justify-content:space-between;align-items:center;gap:10px}.hcio-pk-f small{font-size:12px;color:var(--mut)}',
+        '.hcio-galg{flex:none;display:flex;flex-direction:column;gap:4px}.hcio-galg>small{font-size:12px;color:var(--mut);font-weight:600}',
+        '.hcio-gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:6px}',
+        '.hcio-gal button{position:relative;aspect-ratio:1;padding:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#eef2f6;cursor:zoom-in}',
+        '.hcio-gal img{display:block;width:100%;height:100%;object-fit:cover}.hcio-gal button.bad img{display:none}.hcio-gal button.bad:after{content:"Lỗi ảnh";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#94a3b8}',
+        '.hcio-view{position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.92);display:flex;flex-direction:column;font:14px system-ui,sans-serif;color:#fff}',
+        '.hcio-view-bar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px calc(10px)}.hcio-view-bar span{display:flex;gap:6px}',
+        '.hcio-view-bar a,.hcio-view-bar button{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border:0;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:18px;text-decoration:none;cursor:pointer}',
+        '.hcio-view-img{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 8px calc(12px + env(safe-area-inset-bottom))}',
+        '.hcio-view-img img{max-width:100%;max-height:100%;object-fit:contain}.hcio-view-img span{color:#cbd5e1}',
+        '.hcio-view-img .prev,.hcio-view-img .next{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:28px;line-height:1;cursor:pointer}.hcio-view-img .prev{left:10px}.hcio-view-img .next{right:10px}',
         '.hcio-btn.hcio-big{min-height:52px;padding:10px 32px;font-size:16px;border-radius:12px}.hcio-cnt b{min-width:0;margin:0 2px;border-bottom:0}'
     ].join('') + '</style>';
 
@@ -420,8 +454,8 @@ var HrmsCheckInOut = (function () {
         if (btn) { if (!btn.dataset.label) btn.dataset.label = btn.textContent; btn.disabled = b; btn.textContent = b ? 'Đang xử lý…' : btn.dataset.label; }
         if (point) point.disabled = b || (!!api.config.pointTable && !((state.form && state.form.points) || []).length);
     }
-    api.cancel = function () { if (state.busy) return; cleanup(); state.form = null; NUT.w2popup.message(); };
-    api.close = function () { if (state.busy) return; cleanup(); NUT.w2popup.close(); };
+    api.cancel = function () { if (state.busy) return; api.closePhoto(); cleanup(); state.form = null; NUT.w2popup.message(); };
+    api.close = function () { if (state.busy) return; api.closePhoto(); cleanup(); NUT.w2popup.close(); };
     api.hideError = function () { showError(''); };
 
     // ---------- Màn hình chính ----------
@@ -430,7 +464,7 @@ var HrmsCheckInOut = (function () {
         var action = function (cls, fn, label) { return '<button type="button" class="hcio-btn hcio-sm' + cls + '" onclick="HrmsCheckInOut.' + fn + '(' + id + ')">' + label + '</button>'; };
         return '<div class="hcio-rcard is-' + st.key + '">' +
             '<div class="hcio-rtop"><div class="hcio-rtitle"><div><b>Lần ' + esc(r.lan) + (r.carry ? ' · ' + esc(r.ngay + '/' + r.thang) : '') + '</b><span class="hcio-pill is-' + st.key + '">' + esc(st.text) + '</span></div>' +
-            '<small>' + esc(r.madiemban || '—') + '</small></div>' +
+            '<small>Điểm bán: ' + esc(pointName(r.madiemban) || '—') + '</small></div>' +
             action(' hcio-edit', 'openEdit', '✎ Chỉnh sửa') + '</div>' +
             '<div class="hcio-rbtm"><span class="hcio-time">Vào <b>' + esc(clock(r.thoigianden)) + '</b></span>' +
             '<span class="hcio-time">Ra <b>' + (r.thoigianve ? esc(clock(r.thoigianve)) : '') + '</b></span>' +
@@ -454,7 +488,7 @@ var HrmsCheckInOut = (function () {
             '<button type="button" class="hcio-act hcio-act-out"' + (open ? '' : ' aria-disabled="true"') + ' onclick="HrmsCheckInOut.start(\'out\')"><span class="hcio-act-ico">←</span><b>Check OUT</b><small>' + esc(outWhy) + '</small></button></div>';
         if (leaves.length) {
             html += '<div class="hcio-leave" role="note"><b>Bạn đã báo nghỉ hôm nay</b> (' +
-                esc(leaves.map(function (r) { return 'Lần ' + r.lan + (r.madiemban ? ' · ' + r.madiemban : '') + ' · ' + r.chamcong; }).join('; ')) + ').' +
+                esc(leaves.map(function (r) { return 'Lần ' + r.lan + (r.madiemban ? ' · ' + pointName(r.madiemban) : '') + ' · ' + r.chamcong; }).join('; ')) + ').' +
                 '<span>Báo nghỉ được ghi riêng, không ảnh hưởng chấm công; vẫn Check IN/OUT bình thường.</span></div>';
         }
         if (block) html += '<div class="hcio-alert hcio-alert-warn" role="alert" style="margin:0 0 10px;padding-right:10px">⚠ ' + esc(block) +
@@ -501,7 +535,6 @@ var HrmsCheckInOut = (function () {
             me = me || found[0];
             state.user = code;
             state.nv = { manv: code, hoten: me.hoten || code, makhuvuc: null };
-            // khu vực mặc định của NV: cột regionField trong bảng nhân viên
             if (c.regionField) {
                 try {
                     var ex = await select(c.codeTable, { select: c.regionField, where: [[c.codeField, '=', code]] });
@@ -575,14 +608,20 @@ var HrmsCheckInOut = (function () {
         cv.width = w; cv.height = h;
         var g = cv.getContext('2d'); g.drawImage(img, 0, 0, w, h);
         var d = new Date(), pad = function (n) { return String(n).padStart(2, '0'); };
-        var code = value('point') || (state.form && state.form.point) || '', name = state.pointNames[code];
-        var point = name && name !== code ? name + ' (' + code + ')' : code;
-        var lines = [pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()),
-            state.user + (point ? ' · ' + point : '')];
-        var fs = Math.max(16, Math.round(w / 32)); g.font = '600 ' + fs + 'px system-ui,sans-serif'; g.textBaseline = 'bottom';
-        var bw = Math.max.apply(null, lines.map(function (t) { return g.measureText(t).width; })) + fs, bh = lines.length * fs * 1.3 + fs * 0.6;
-        g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(0, h - bh, bw, bh); g.fillStyle = '#fff';
-        lines.forEach(function (t, i) { g.fillText(t, fs / 2, h - bh + fs * 0.3 + (i + 1) * fs * 1.3); });
+        var f = state.form || {}, out = f.type === 'out' || (f.type === 'repair' && f.kind === 'out');
+        var kind = 'CHECK ' + (out ? 'OUT' : 'IN') + (f.type === 'repair' ? ' (bổ sung)' : '');
+        var code = value('point') || f.point || '', point = pointName(code);
+        var h12 = d.getHours() % 12 || 12, ap = d.getHours() < 12 ? 'AM' : 'PM';
+        var lines = [kind + '  ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + pad(h12) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) + ' ' + ap,
+            'NV: ' + ((state.nv && state.nv.hoten) || state.user)];
+        if (point) lines.push('Điểm bán: ' + point);
+        var fs = Math.max(16, Math.round(w / 32)), font = function () { g.font = '600 ' + fs + 'px system-ui,sans-serif'; };
+        font(); g.textBaseline = 'bottom';
+        var widest = function () { return Math.max.apply(null, lines.map(function (t) { return g.measureText(t).width; })); };
+        while (fs > 12 && widest() + fs > w) { fs--; font(); }
+        var bw = Math.min(w, widest() + fs), bh = lines.length * fs * 1.3 + fs * 0.6;
+        g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(0, h - bh, bw, bh);
+        lines.forEach(function (t, i) { g.fillStyle = i === 0 ? (out ? '#fdba74' : '#86efac') : '#fff'; g.fillText(t, fs / 2, h - bh + fs * 0.3 + (i + 1) * fs * 1.3); });
         var blob = await new Promise(function (resolve) { cv.toBlob(resolve, 'image/jpeg', c.jpegQuality); });
         if (!blob) fail('Không xử lý được ảnh.');
         return new File([blob], 'hcio_' + Date.now() + '.jpg', { type: 'image/jpeg', lastModified: Date.now() });
@@ -687,12 +726,12 @@ var HrmsCheckInOut = (function () {
         var k = 'p' + p.k, cells = '';
         ['a', 'n', 'c'].forEach(function (col) {
             var mode = f.cols[col]; if (!mode) return;
-            cells += '<td>' + (mode === 'e' ? numeric(k + COL_NO[col], p[col], p.ten + ' – ' + COL_LABEL[col], col !== 'n')
+            cells += '<td>' + (mode === 'e' ? numeric(k + COL_NO[col], p[col], p.ten + ' – ' + COL_LABEL[col], false)
                 : '<span class="hcio-ro">' + (p[col] == null ? '—' : fmt(p[col])) + '</span>') + '</td>';
         });
         if (f.cols.c) cells += '<td class="hcio-sold" id="hcio-sold-' + k + '">—</td>';
         if (f.remove) cells += '<td><button type="button" class="hcio-rmbtn" aria-label="Bỏ ' + esc(p.ten) + '" title="Bỏ sản phẩm" onclick="HrmsCheckInOut.removeRow(' + p.k + ')">✕</button></td>';
-        return '<tr id="hcio-row-' + k + '"><th title="' + esc(p.ma) + '"><b>' + esc(p.ten) + '</b>' + (p.ten !== p.ma ? '<small>' + esc(p.ma) + '</small>' : '') + '</th>' + cells + '</tr>';
+        return '<tr id="hcio-row-' + k + '"><th><b>' + esc(p.ten) + '</b></th>' + cells + '</tr>';
     }
     // f.cols: { a, n, c } = 'e' nhập | 'r' chỉ xem | bỏ trống = ẩn; f.add / f.remove: cho thêm / bỏ dòng sản phẩm
     function stockTable(f, o) {
@@ -712,7 +751,8 @@ var HrmsCheckInOut = (function () {
             '<div id="hcio-warn" class="hcio-alert hcio-alert-warn" role="alert" hidden><span id="hcio-warn-text"></span>' +
             '<button type="button" class="hcio-alert-x" aria-label="Đóng cảnh báo" title="Đóng" onclick="HrmsCheckInOut.hideWarn()">✕</button></div>' +
             '<div class="hcio-stock-f">' + (o.zero ? '<label class="hcio-check"><input id="hcio-zero" type="checkbox" onchange="HrmsCheckInOut.zeroCol(this,' + js(o.zero.col) + ')"> ' + esc(o.zero.label) + '</label>' : '<span></span>') +
-            (o.note ? '<small>' + esc(o.note) + '</small>' : '') + '</div></section>';
+            (o.note ? '<small>' + esc(o.note) + '</small>' : '') + '</div>' +
+            '<div class="hcio-hint">Sản lượng tồn/nhập: ghi theo keg/lon/chai.</div></section>';
     }
     // v[masanpham] = { a: tồn đầu, n: nhập, c: tồn cuối ('' nếu chưa nhập), b: số bán (null nếu chưa có tồn cuối) }
     function stockOf(s, list) {
@@ -820,21 +860,23 @@ var HrmsCheckInOut = (function () {
         var f = state.form; if (!f || !f.add || state.busy) return;
         if (!(f.catalog || []).length) return notify('Chưa có danh mục sản phẩm. Liên hệ quản trị.', true);
         var have = {}; f.products.forEach(function (p) { have[p.ma] = 1; });
-        var list = f.catalog.filter(function (p) { return !have[p.ma]; });
+        var list = f.catalog.filter(function (p) { return !have[p.ma] && !p.an; });
         if (!list.length) return notify('Đã thêm hết sản phẩm trong danh mục.', true);
         var roots = document.querySelectorAll('.hcio-fit'), root = roots[roots.length - 1]; if (!root || el('pk')) return;
         state.pickList = list;
         root.insertAdjacentHTML('beforeend', '<div class="hcio-pk" id="hcio-pk" role="dialog" aria-label="Chọn sản phẩm">' +
             '<div class="hcio-pk-h"><b>Chọn sản phẩm</b><button type="button" class="hcio-close" aria-label="Đóng" title="Đóng" onclick="HrmsCheckInOut.closePicker()">✕</button></div>' +
-            '<input type="text" id="hcio-pk-q" autocomplete="off" placeholder="Tìm theo tên hoặc mã sản phẩm…" oninput="HrmsCheckInOut.filterPicker(this.value)">' +
+            '<input type="text" id="hcio-pk-q" autocomplete="off" placeholder="Tìm sản phẩm…" oninput="HrmsCheckInOut.filterPicker(this.value)">' +
             '<div class="hcio-pk-list">' + list.map(function (p, i) {
                 return '<label class="hcio-pk-i" data-q="' + esc((p.ten + ' ' + p.ma + ' ' + (p.dt || '')).toLowerCase()) + '"><input type="checkbox" value="' + i + '" onchange="HrmsCheckInOut.pickCount()">' +
-                    '<span><b>' + esc(p.ten) + '</b><small>' + esc(p.ma) + (p.dt ? ' · ' + esc(p.dt) : '') + '</small></span>' + (p.td ? '<em title="Sản phẩm trọng điểm">★</em>' : '') + '</label>';
+                    '<span><b>' + esc(p.ten) + '</b>' + (p.kt ? '<small>' + p.kt + '/két</small>' : '') + '</span>' + (p.td ? '<em title="Sản phẩm trọng điểm">★</em>' : '') + '</label>';
             }).join('') + '</div>' +
             '<div class="hcio-pk-f"><small id="hcio-pk-n">Chưa chọn sản phẩm nào</small><button type="button" class="hcio-btn" id="hcio-pk-ok" disabled onclick="HrmsCheckInOut.pickAdd()">Thêm vào</button></div></div>');
+        var box = root.closest('.w2ui-message'), pop = document.getElementById('w2ui-popup');
+        if (box) box.style.height = Math.min(sizes().height, pop ? pop.offsetHeight - 56 : 9999) + 'px';
         var q = el('pk-q'); if (q) q.focus();
     };
-    api.closePicker = function () { var pk = el('pk'); if (pk && pk.parentNode) pk.parentNode.removeChild(pk); state.pickList = null; };
+    api.closePicker = function () { var pk = el('pk'); if (pk && pk.parentNode) pk.parentNode.removeChild(pk); state.pickList = null; fitHeight(); };
     api.filterPicker = function (q) {
         q = String(q || '').toLowerCase().trim();
         Array.prototype.forEach.call(document.querySelectorAll('#hcio-pk .hcio-pk-i'), function (l) { l.hidden = !!q && l.getAttribute('data-q').indexOf(q) < 0; });
@@ -854,6 +896,10 @@ var HrmsCheckInOut = (function () {
             if (z && z.checked && f.zeroCol) { var e = el('p' + p.k + f.zeroCol); if (e) { e.dataset.keep = ''; e.value = '0'; e.disabled = true; } }
             if (!first) first = el('p' + p.k + '1');
         });
+        var pos = {}; (f.catalog || []).forEach(function (c, i) { pos[c.ma] = i; });
+        var at = function (p) { return pos[p.ma] == null ? 1e9 : pos[p.ma]; };
+        f.products.sort(function (a, b) { return at(a) - at(b) || a.k - b.k; });
+        f.products.forEach(function (p) { var row = el('row-p' + p.k); if (row) body.appendChild(row); });
         api.closePicker(); syncEmpty(); api.calc(); fitHeight();
         if (first) first.focus();
     };
@@ -862,7 +908,7 @@ var HrmsCheckInOut = (function () {
     // khu vực lấy theo hồ sơ nhân viên (không hiện, không cho chọn); chỉ chọn điểm bán thuộc khu vực đó
     function placeFields(region, pointValue) {
         if (!api.config.pointTable) {
-            return { region: region, warn: '', html: '<div><label for="hcio-point">Điểm bán *</label><input id="hcio-point" type="text" maxlength="50" autocomplete="off" placeholder="Mã hoặc tên điểm bán" value="' + esc(pointValue || '') + '"></div>' };
+            return { region: region, warn: '', html: '<div><label for="hcio-point">Điểm bán *</label><input id="hcio-point" type="text" maxlength="50" autocomplete="off" placeholder="Tên điểm bán" value="' + esc(pointValue || '') + '"></div>' };
         }
         return {
             region: region,
@@ -892,7 +938,7 @@ var HrmsCheckInOut = (function () {
             form.points = rows;
             rows.forEach(function (r) { if (r.tendiemban) state.pointNames[r.madiemban] = r.tendiemban; });
             point.innerHTML = '<option value="">' + (rows.length ? 'Chọn điểm bán' : 'Khu vực chưa có điểm bán') + '</option>' +
-                rows.map(function (r) { return '<option value="' + esc(r.madiemban) + '">' + esc(r.tendiemban) + ' · ' + esc(r.madiemban) + '</option>'; }).join('');
+                rows.map(function (r) { return '<option value="' + esc(r.madiemban) + '">' + esc(r.tendiemban || r.madiemban) + '</option>'; }).join('');
             point.disabled = !rows.length || state.busy;
             var want = form.prefPoint || lastPoint();
             var pick = rows.length === 1 ? rows[0].madiemban : rows.some(function (x) { return String(x.madiemban) === String(want); }) ? want : '';
@@ -906,7 +952,84 @@ var HrmsCheckInOut = (function () {
     function noteField(r) {
         return '<div><label for="hcio-note">Ghi chú</label><input id="hcio-note" type="text" maxlength="255" autocomplete="off" placeholder="Không bắt buộc" value="' + esc(r.ghichu || '') + '"></div>';
     }
-    var ZERO_END = { col: '3', label: 'Cuối ca hết hàng (Tồn cuối = 0)' };
+
+    // ---------- Xem ảnh đã chụp ----------
+    // ảnh lưu dạng URL, "media/..." hoặc tên file; tự thử từng đường dẫn đến khi tải được
+    function photoUrls(r, p) {
+        p = String(p || '').replace(/\\/g, '/').trim();
+        if (/^(https?:|data:|blob:)/i.test(p)) return [p];
+        var base = String((window.n$ && n$.BASE) || '/'); if (!/\/$/.test(base)) base += '/';
+        var rel = p.replace(/^\/+/, ''), list = [];
+        var add = function (u) { if (u && list.indexOf(u) < 0) list.push(u); };
+        if (p.charAt(0) === '/') add(p);
+        if (rel.indexOf('/') >= 0) {
+            add(base + rel);
+            if (!/^media\//i.test(rel)) add(base + 'media/' + rel);
+        }
+        var file = rel.split('/').pop();
+        add(base + 'media/' + n$.user.siteid + '/' + api.config.uploadId + '/' + r.idchamcong + '/' + file);
+        return list;
+    }
+    function photoList(r, kind) { return images(kind === 'out' ? r.hinhanh2 : r.hinhanh).map(function (p) { return photoUrls(r, p); }); }
+    function imgAttrs(urls) { return 'src="' + esc(urls[0]) + '" data-alt="' + esc(JSON.stringify(urls.slice(1))) + '" onerror="HrmsCheckInOut.imgNext(this)"'; }
+    api.imgNext = function (img) {
+        var rest = []; try { rest = JSON.parse(img.getAttribute('data-alt') || '[]'); } catch (e) { rest = []; }
+        if (rest.length) { img.setAttribute('data-alt', JSON.stringify(rest.slice(1))); img.src = rest[0]; return; }
+        img.onerror = null;
+        console.warn('[HrmsCheckInOut] không tải được ảnh:', img.getAttribute('src'));
+        if (img.parentNode && img.parentNode.tagName === 'BUTTON') img.parentNode.classList.add('bad');
+        if (img.id === 'hcio-view-img') { img.hidden = true; var e = document.getElementById('hcio-view-err'); if (e) e.hidden = false; }
+    };
+    function gallery(r) {
+        var id = js(r.idchamcong);
+        var group = function (kind, label, allowed) {
+            var list = photoList(r, kind);
+            var thumbs = list.map(function (u, i) {
+                return '<button type="button" title="Xem ảnh ' + (i + 1) + '" onclick="HrmsCheckInOut.viewPhoto(' + id + ',' + js(kind) + ',' + i + ')">' +
+                    '<img loading="lazy" ' + imgAttrs(u) + ' alt="' + esc(label + ' ' + (i + 1)) + '"></button>';
+            }).join('');
+            return '<div class="hcio-galg"><small>' + esc(label) + ' · ' + (list.length ? list.length + ' ảnh' : allowed ? 'chưa có ảnh' : 'chưa Check OUT') + '</small>' +
+                (thumbs ? '<div class="hcio-gal">' + thumbs + '</div>' : '') + '</div>';
+        };
+        return '<div class="hcio-sec">Ảnh đã chụp</div>' + group('in', 'Check IN', true) + group('out', 'Check OUT', !!r.thoigianve);
+    }
+    api.viewPhoto = function (id, kind, i) {
+        var r = state.lookup[String(id)]; if (!r) return;
+        var list = photoList(r, kind); if (!list.length) return;
+        var name = 'Check ' + (kind === 'out' ? 'OUT' : 'IN'), cur = Math.max(0, Math.min(list.length - 1, Number(i) || 0));
+        api.closePhoto();
+        var box = document.createElement('div');
+        box.className = 'hcio-view'; box.id = 'hcio-view'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Xem ảnh ' + name);
+        box.innerHTML = '<div class="hcio-view-bar"><b id="hcio-view-cap"></b><span>' +
+            '<a id="hcio-view-open" target="_blank" rel="noopener" title="Mở ảnh gốc">⤢</a>' +
+            '<button type="button" aria-label="Đóng" title="Đóng" onclick="HrmsCheckInOut.closePhoto()">✕</button></span></div>' +
+            '<div class="hcio-view-img"><img id="hcio-view-img" alt="' + esc(name) + '"><span id="hcio-view-err" hidden>Không tải được ảnh</span>' +
+            (list.length > 1 ? '<button type="button" class="prev" aria-label="Ảnh trước" onclick="HrmsCheckInOut.stepPhoto(-1)">‹</button><button type="button" class="next" aria-label="Ảnh sau" onclick="HrmsCheckInOut.stepPhoto(1)">›</button>' : '') + '</div>';
+        document.body.appendChild(box);
+        state.viewer = { list: list, i: cur, name: name, lan: r.lan };
+        state.viewerKey = function (e) {
+            if (e.key === 'Escape') { e.stopPropagation(); api.closePhoto(); }
+            else if (e.key === 'ArrowLeft') api.stepPhoto(-1); else if (e.key === 'ArrowRight') api.stepPhoto(1);
+        };
+        document.addEventListener('keydown', state.viewerKey, true);
+        showViewer();
+    };
+    function showViewer() {
+        var v = state.viewer, img = document.getElementById('hcio-view-img'); if (!v || !img) return;
+        var urls = v.list[v.i], err = document.getElementById('hcio-view-err'), open = document.getElementById('hcio-view-open');
+        err.hidden = true; img.hidden = false;
+        img.setAttribute('data-alt', JSON.stringify(urls.slice(1)));
+        img.onerror = function () { api.imgNext(img); };
+        img.onload = function () { open.href = img.currentSrc || img.src; };
+        img.src = urls[0]; open.href = urls[0];
+        document.getElementById('hcio-view-cap').textContent = 'Lần ' + v.lan + ' · Ảnh ' + v.name + ' · ' + (v.i + 1) + '/' + v.list.length;
+    }
+    api.stepPhoto = function (d) { var v = state.viewer; if (!v) return; v.i = (v.i + d + v.list.length) % v.list.length; showViewer(); };
+    api.closePhoto = function () {
+        var box = document.getElementById('hcio-view'); if (box && box.parentNode) box.parentNode.removeChild(box);
+        if (state.viewerKey) document.removeEventListener('keydown', state.viewerKey, true);
+        state.viewer = null; state.viewerKey = null;
+    };
 
     function roundProducts(r) {
         var s = sales(r), items = (s && s.items) || {}, k = 0;
@@ -934,8 +1057,8 @@ var HrmsCheckInOut = (function () {
             var list = roundProducts(r);
             var form = { type: 'inStock', id: String(id), point: r.madiemban, products: list, kseq: list.length, cols: { a: 'e' }, add: true, remove: true, catalog: productsFor(r, sales(r)) };
             openPanel({
-                title: 'Check IN' + (Number(r.lan) > 1 ? ' · Lần ' + r.lan : '') + ' · Tồn đầu', sub: 'Bước 2/2 · ' + (r.madiemban || '') + ' · Vào ' + clock(r.thoigianden), submit: 'Lưu tồn đầu', form: form,
-                body: stockTable(form, { title: 'Tồn đầu', note: 'Bấm ＋ để chọn sản phẩm, chỉ nhập Tồn đầu. Nhập NPP ở “Chỉnh sửa”, Tồn cuối khi Check OUT.' })
+                title: 'Check IN' + (Number(r.lan) > 1 ? ' · Lần ' + r.lan : '') + ' · Tồn đầu', sub: 'Bước 2/2 · ' + pointName(r.madiemban) + ' · Vào ' + clock(r.thoigianden), submit: 'Lưu tồn đầu', form: form,
+                body: stockTable(form, { title: 'Tồn đầu', note: 'Bấm ＋ để chọn sản phẩm, Tồn đầu mặc định 0. Nhập NPP ở “Chỉnh sửa”, Tồn cuối khi Check OUT.' })
             });
             api.calc();
         } catch (e) { notify(e.message, true); }
@@ -950,8 +1073,8 @@ var HrmsCheckInOut = (function () {
         if (!list.length) return api.openOutPhoto(id);
         var form = { type: 'outStock', id: String(id), point: r.madiemban, products: list, kseq: list.length, cols: { a: 'r', n: 'r', c: 'e' } };
         openPanel({
-            title: outTitle(r), sub: 'Bước 1/2 · Xác nhận tồn cuối · ' + (r.madiemban || ''), submit: 'Xác nhận tồn cuối →', out: true, form: form,
-            body: stockTable(form, { title: 'Xác nhận tồn cuối', required: true, zero: ZERO_END, note: 'Kiểm đếm hàng còn lại trước khi Check OUT.' })
+            title: outTitle(r), sub: 'Bước 1/2 · Xác nhận tồn cuối · ' + pointName(r.madiemban), submit: 'Xác nhận tồn cuối →', out: true, form: form,
+            body: stockTable(form, { title: 'Xác nhận tồn cuối', required: true, note: 'Tồn cuối mặc định 0, sửa lại theo số hàng còn thực tế.' })
         });
         api.calc();
     };
@@ -959,7 +1082,7 @@ var HrmsCheckInOut = (function () {
         if (state.busy || staleDay()) return;
         var r = record(id); if (!r.thoigianden || r.thoigianve) return;
         openPanel({
-            title: outTitle(r), sub: (roundProducts(r).length ? 'Bước 2/2 · ' : '') + (r.madiemban || '') + ' · Vào ' + clock(r.thoigianden), submit: 'Check OUT', out: true,
+            title: outTitle(r), sub: (roundProducts(r).length ? 'Bước 2/2 · ' : '') + pointName(r.madiemban) + ' · Vào ' + clock(r.thoigianden), submit: 'Check OUT', out: true,
             form: { type: 'out', id: String(id), point: r.madiemban },
             body: '<div class="hcio-fields">' + noteField(r) + '</div>' + photoBlock('outPhoto', 'Ảnh Check OUT', true)
         });
@@ -976,10 +1099,10 @@ var HrmsCheckInOut = (function () {
             var form = { type: 'edit', id: String(id), full: full, points: [], prefPoint: r.madiemban, point: r.madiemban, region: pf.region, products: list, kseq: list.length,
                 cols: full ? { a: 'e', n: 'e', c: 'e' } : { a: 'e', n: 'e' }, add: true, remove: true, catalog: productsFor(r, sales(r)) };
             openPanel({
-                title: 'Chỉnh sửa · Lần ' + r.lan, sub: (r.madiemban || '') + ' · ' + clock(r.thoigianden) + ' → ' + (full ? clock(r.thoigianve) : 'đang trong ca'),
+                title: 'Chỉnh sửa · Lần ' + r.lan, sub: pointName(r.madiemban) + ' · ' + clock(r.thoigianden) + ' → ' + (full ? clock(r.thoigianve) : 'đang trong ca'),
                 submit: 'Lưu thay đổi', form: form,
                 body: pf.warn + '<div class="hcio-fields">' + pf.html + noteField(r) + '</div>' +
-                    stockTable(form, full ? { title: 'Sản lượng ca', required: true, zero: ZERO_END } : { title: 'Tồn đầu · Nhập NPP', note: 'Tồn cuối nhập khi Check OUT.' })
+                    stockTable(form, full ? { title: 'Sản lượng ca', required: true } : { title: 'Tồn đầu · Nhập NPP', note: 'Tồn cuối nhập khi Check OUT.' })
             });
             if (api.config.pointTable) api.loadPoints(pf.region);
             api.calc();
@@ -994,9 +1117,9 @@ var HrmsCheckInOut = (function () {
                 '<small>' + esc(!allowed ? why : n ? 'Đã có ' + n + ' ảnh · bấm để chụp thêm' : 'Chưa có ảnh · bấm để chụp bổ sung') + '</small></button>';
         };
         openPanel({
-            title: 'Bổ sung ảnh', sub: 'Lần ' + r.lan + ' · ' + (r.madiemban || '') + ' · Vào ' + clock(r.thoigianden) + (r.thoigianve ? ' · Ra ' + clock(r.thoigianve) : ''),
+            title: 'Bổ sung ảnh', sub: 'Lần ' + r.lan + ' · ' + pointName(r.madiemban) + ' · Vào ' + clock(r.thoigianden) + (r.thoigianve ? ' · Ra ' + clock(r.thoigianve) : ''),
             form: { type: 'pick', id: String(id) },
-            body: '<p>Chọn loại ảnh cần chụp bổ sung. Ảnh Check OUT chỉ bổ sung được sau khi Check OUT.</p><div class="hcio-pick">' +
+            body: gallery(r) + '<p>Chọn loại ảnh cần chụp bổ sung. Ảnh Check OUT chỉ bổ sung được sau khi Check OUT.</p><div class="hcio-pick">' +
                 option('in', 'Ảnh Check IN', ph.inN, true, '') + option('out', 'Ảnh Check OUT', ph.outN, !!r.thoigianve, 'Chỉ bổ sung sau khi Check OUT') + '</div>'
         });
     };
@@ -1005,7 +1128,7 @@ var HrmsCheckInOut = (function () {
         switchPanel(function () {
             var r = record(id), out = kind === 'out', name = 'Check ' + (out ? 'OUT' : 'IN');
             openPanel({
-                title: 'Bổ sung ảnh ' + name, sub: 'Lần ' + r.lan + ' · ' + (r.madiemban || '') + ' · Hiện có ' + photoState(r)[out ? 'outN' : 'inN'] + ' ảnh ' + name,
+                title: 'Bổ sung ảnh ' + name, sub: 'Lần ' + r.lan + ' · ' + pointName(r.madiemban) + ' · Hiện có ' + photoState(r)[out ? 'outN' : 'inN'] + ' ảnh ' + name,
                 submit: 'Lưu ảnh ' + name, out: out,
                 form: { type: 'repair', kind: out ? 'out' : 'in', id: String(id), point: r.madiemban },
                 body: photoBlock('fixPhoto', 'Ảnh ' + name, true)
@@ -1016,11 +1139,12 @@ var HrmsCheckInOut = (function () {
         if (state.busy) return;
         var r = record(id), s = sales(r), done = !!r.thoigiansanluong, plist = productsFor(r, s), sv = stockOf(s, plist);
         var kv = function (k, v) { return '<div class="hcio-kv"><small>' + esc(k) + '</small><b>' + esc(v) + '</b></div>'; };
-        var html = '<div class="hcio-kvs">' + kv('Khu vực', r.makhuvuc ? regionName(r.makhuvuc) : '—') + kv('Điểm bán', r.madiemban || '—') +
+        var html = '<div class="hcio-kvs">' + kv('Khu vực', r.makhuvuc ? regionName(r.makhuvuc) : '—') + kv('Điểm bán', pointName(r.madiemban) || '—') +
             kv('Lần', String(r.lan)) +
             kv('Sản lượng', state.salesErr ? 'Không đọc được' : done ? 'Đã chốt lúc ' + clock(r.thoigiansanluong) : r.thoigianve ? 'Chưa nhập tồn cuối' : hasStock(r) ? 'Đã nhập · chưa chốt' : 'Chưa nhập') +
             kv('Giờ vào', clock(r.thoigianden)) + kv('Giờ ra', r.thoigianve ? clock(r.thoigianve) : '—') + '</div>';
         if (r.ghichu) html += '<div class="hcio-note">' + esc(r.ghichu) + '</div>';
+        if (r.thoigianden) html += gallery(r);
         var body = '', t = { a: 0, n: 0, c: 0, b: 0 };
         plist.forEach(function (p) {
             var x = sv[p.ma], a = x.a, n = x.n, has = x.b != null, b = x.b || 0;

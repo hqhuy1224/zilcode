@@ -1121,6 +1121,8 @@ var SummaryTinhReport = {
                 tr.className = "total";
                 cell(tr, "TỔNG CỘNG", "td", 2);
             } else {
+                tr.setAttribute("data-report-province", r.province || "" );
+                tr.setAttribute("data-province-columns", "2" );
                 cell(tr, index + 1);
                 cell(tr, r.province, "td", 1, 1, "province");
             }

@@ -174,8 +174,17 @@
             #tblReport thead { display: table-header-group; }
             #tblReport tr { page-break-inside: avoid; }
         }
+        /* Keep employee names on one line within their configured columns. */
+        #tblReport tbody tr:not(.total-row) td:nth-child(4),
+        #tblReport tbody tr:not(.total-row) td:nth-child(5) {
+            white-space: nowrap;
+            overflow-wrap: normal;
+            word-break: normal;
+            text-align: left;
+        }
     </style>
     <script src="ReportFrozenColumns.js?v=20261114.1" defer></script>
+<script src="ReportProvinceColors.js?v=20261119.1" defer></script>
 </head>
 
 <body>
@@ -280,6 +289,7 @@
                             cls.forEach(function (k) { if (k && BODY[k]) st += BODY[k]; });
                         }
 
+                        if (c.hasAttribute("data-province-color")) st += "background:" + c.getAttribute("data-province-color") + ";";
                         h += "<td" +
                             (c.colSpan > 1 ? ' colspan="' + c.colSpan + '"' : "") +
                             (c.rowSpan > 1 ? ' rowspan="' + c.rowSpan + '"' : "") +

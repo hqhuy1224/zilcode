@@ -4,13 +4,12 @@ var MonthlyMS01Report = {
     serviceIndex: 3,
     domainThiTruong: 1201,
     madoitac: "HABECO",
-    template: "MonthlyMS01Report.html",
+    template: "MonthlyMS01Report.html?v=20261119.3",
 
     /* ================= CẤU HÌNH ================= */
 
     dinhMucCong: 26,          // "Ngày công chuẩn"
     targetInKet: true,        // chitieu_ct.soluong đã tính theo két/thùng? (false = chai/lon, sẽ chia cho sanpham.ket)
-    viewName: "MS03_View",    // view tính sẵn công + sản lượng két theo nhân viên/tháng (dùng cho khối "Tổng kết tháng")
     maField: "dms",           // cột lấy "Mã Điểm bán" trong chamcong_v (thiếu thì dùng madiemban)
 
     // 8 cột sản phẩm của bảng ngày, đúng thứ tự trên mẫu (sanpham.masanpham viết HOA).
@@ -92,8 +91,8 @@ var MonthlyMS01Report = {
             NUT.notify(e.message, "red");
         }
 
-        var kvOptions = "<option value=''>-- Tất cả --</option>" + regions.map(function (r) {
-            return "<option value='" + U.esc(r.makhuvuc) + "'>" + U.esc(r.thitruong) + "</option>";
+        var ttOptions = "<option value=''>-- Tất cả --</option>" + regions.map(function (r) {
+            return "<option value='" + U.esc(r.makhuvuc) + "'>" + U.esc(r.tenthitruong) + "</option>";
         }).join("");
 
         NUT.w2popup.open({
@@ -115,12 +114,12 @@ var MonthlyMS01Report = {
                 "<tr><td>Đối tác</td><td colspan='3'>" + self.madoitac + "</td></tr>" +
                 "<tbody id='ms01_DataFields'>" +
                 "<tr>" +
-                    "<td>Khu vực</td>" +
-                    "<td colspan='3'><select id='cbo_KhuVuc' style='width:250px' onchange='MonthlyMS01Report.loadNhanVien(this.value)'>" + kvOptions + "</select></td>" +
+                    "<td>Thị trường</td>" +
+                    "<td colspan='3'><select id='cbo_KhuVuc' style='width:250px' onchange='MonthlyMS01Report.loadNhanVien(this.value)'>" + ttOptions + "</select></td>" +
                 "</tr>" +
                 "<tr>" +
                     "<td>Nhân viên</td>" +
-                    "<td colspan='3'><select id='cbo_NhanVien' style='width:250px' disabled><option value=''>-- Chọn khu vực trước --</option></select></td>" +
+                    "<td colspan='3'><select id='cbo_NhanVien' style='width:250px' disabled><option value=''>-- Chọn thị trường trước --</option></select></td>" +
                 "</tr>" +
                 "</tbody>" +
                 "<tbody id='ms01_BlankFields' hidden>" +
@@ -139,12 +138,12 @@ var MonthlyMS01Report = {
     },
 
     blankFields: [
-        { key: "tl", label: "TL/PG Sup" },
-        { key: "gs", label: "Giám sát khu vực" },
+        { key: "tl", label: "TL/PG Sup/TF" },
+        { key: "gs", label: "Giám sát KD/Giám đốc PTTT" },
         { key: "kv", label: "Khu vực/Thị trường" },
         { key: "hnb", label: "HNB", value: "HNB" },
         { key: "mahieu", label: "Mã hiệu", value: "QT.01/HNB.TM-01/NVTT" },
-        { key: "bhsd", label: "BH/SĐ", value: "1/0" },
+        { key: "bhsd", label: "Bh/sđ", value: "1/0" },
         { key: "ngay", label: "Ngày", type: "date", value: "2026-05-04" }
     ],
 
@@ -298,8 +297,6 @@ var MonthlyMS01Report = {
                     ]
                 }),
                 self.sel("chitieu", { limit: 20000, where: nvWhere }),
-                // công + sản lượng két theo nhân viên cho khối "Tổng kết tháng" (cùng nguồn với báo cáo MS03)
-                self.sel(self.viewName, { limit: 20000, where: nvWhere }),
                 self.sel("sanpham", {
                     select: "masanpham,tensanpham,trongdiem,ket",
                     limit: 5000,
@@ -307,7 +304,7 @@ var MonthlyMS01Report = {
                 })
             ]);
 
-            var records = got[0], cvRows = got[1], heads = got[2], viewRows = got[3], sanpham = got[4];
+            var records = got[0], cvRows = got[1], heads = got[2], sanpham = got[3];
 
             if (!records.length) {
                 NUT.notify("Không có dữ liệu báo cáo!", "yellow");
@@ -333,7 +330,7 @@ var MonthlyMS01Report = {
             var model = self.buildModel({
                 nam: nam, thang: thang, thiTruongText: thiTruongText,
                 records: records, details: parts[0], cvRows: cvRows,
-                ctHeads: heads, ctDetails: parts[1], viewRows: viewRows, sanpham: sanpham
+                ctHeads: heads, ctDetails: parts[1], sanpham: sanpham
             });
 
             self.openReport(model);
@@ -351,7 +348,7 @@ var MonthlyMS01Report = {
          nhập     = tổng nhập các lần
          bán      = tổng (tồn đầu + nhập − tồn cuối) các lần đã có tồn cuối (không âm)
          tồn cuối = tồn cuối của lần sau cùng có số liệu
-       Khối "Tổng kết tháng" lấy công và số bán (két) của cả tháng từ view MS03_View,
+       Khối "Tổng kết tháng" cộng công và số bán (két) của nhân viên tại điểm bán trên trang,
        so với chỉ tiêu (chitieu_ct) của nhân viên.
     */
     buildModel: function (inp) {
@@ -365,7 +362,7 @@ var MonthlyMS01Report = {
         var codeCol = Object.create(null);
         self.cols.forEach(function (c, i) { c.codes.forEach(function (k) { codeCol[k] = i; }); });
 
-        // hệ số két theo sanpham.ket (chỉ cần khi chỉ tiêu tính theo chai/lon)
+        // Hệ số quy đổi két/thùng từ danh mục sản phẩm, có hệ số dự phòng.
         var ketOf = Object.create(null);
         (inp.sanpham || []).forEach(function (x) { ketOf[U.str(x.masanpham).toUpperCase()] = U.num(x.ket); });
 
@@ -413,10 +410,6 @@ var MonthlyMS01Report = {
             t[groupIndex[base.g]] += q;
         });
 
-        // công + két đã bán trong tháng (view)
-        var viewBy = Object.create(null);
-        (inp.viewRows || []).forEach(function (v) { viewBy[U.str(v.manhanvien)] = v; });
-
         // gom bản ghi theo (nhân viên, điểm bán): chỉ các lần có Check IN
         var pagesBy = Object.create(null), order = [];
         records.forEach(function (r) {
@@ -444,16 +437,24 @@ var MonthlyMS01Report = {
             var info = p.info, kv = U.str(info.makhuvuc);
 
             // số liệu từng ngày: days[d][c] = { a, n, c, ban }
+            var soldByGroup = U.zeros(NG), pointCong = 0;
             var days = [];
             for (var d = 0; d <= nDays; d++) days.push(null);
 
             p.recs.slice().sort(function (x, y) { return U.num(x.lan) - U.num(y.lan); }).forEach(function (r) {
                 var day = Number(r.ngay);
                 if (!(day >= 1 && day <= nDays)) return;
+                pointCong += Math.max(0, U.num(r.cong));
                 var per = bag[String(r.idchamcong)];
                 if (!per) return;
 
                 Object.keys(per).forEach(function (code) {
+                    var detail = per[code], product = self.products[code];
+                    if (product && detail.c !== undefined) {
+                        var sold = Math.max(0, (detail.a || 0) + (detail.n || 0) - detail.c);
+                        var divisor = ketOf[code] > 0 ? ketOf[code] : product.dv;
+                        soldByGroup[groupIndex[product.g]] += sold / divisor;
+                    }
                     var ci = codeCol[code];
                     if (ci === undefined) {
                         if (self.products[code]) noCol[code] = true; else unmapped[code] = true;
@@ -483,14 +484,14 @@ var MonthlyMS01Report = {
             }
 
             // khối tổng kết tháng
-            var v = viewBy[p.ma] || null, ct = target[p.ma] || null;
-            if (!v) noView[p.ma] = true;
+            var ct = target[p.ma] || null;
+
             if (!ct) noCt[p.ma] = true;
             if (perNv[p.ma] > 1) multi[p.ma] = true;
 
-            var sum = { groups: [], tot: { kh: 0, ban: 0 }, cong: v ? U.num(v.cong) : 0, hasView: !!v, hasCt: !!ct };
+            var sum = { groups: [], tot: { kh: 0, ban: 0 }, cong: pointCong, hasActual: true, hasCt: !!ct };
             G.forEach(function (g, i) {
-                var kh = ct ? ct[i] : 0, ban = v ? Math.max(0, U.num(v[g.key + "_ket"])) : 0;
+                var kh = ct ? ct[i] : 0, ban = soldByGroup[i];
                 sum.groups.push({ key: g.key, kh: kh, ban: ban, show: kh > 0 || ban > 0 });
                 sum.tot.kh += kh;
                 sum.tot.ban += ban;
@@ -502,6 +503,7 @@ var MonthlyMS01Report = {
                        .filter(function (shift) { return shift && shift !== "00:00 - 00:00"; }).join("; ");
 
             return {
+                province: U.str(info.tenthitruong) || U.str(info.thitruong),
                 ma: p.ma,
                // kv: U.str(info.tenkhuvuc,"/",U.str(info.tenthitruong)) || "",
                 kv: [U.str(info.tenkhuvuc),U.str(info.tenthitruong)].filter(Boolean).join(" / "),
@@ -609,6 +611,8 @@ var MonthlyMS01Report = {
             setF(t, "nv", pg.nv);
             setF(t, "tl", pg.tl);
             setF(t, "tf", pg.tf);
+            setF(t, "leaderRole", U.str(pg.tf) ? "TF" : "TL" );
+            setF(t, "leaderName", U.str(pg.tf) || pg.tl);
             setF(t, "gs", pg.gs);
             setF(t, "ten", pg.ten);
             setF(t, "diachi", pg.diachi);
@@ -656,10 +660,10 @@ var MonthlyMS01Report = {
                 setS(t, "ch-" + g.key, "");
             });
             setS(t, "kh-tot", s.hasCt ? U.q(s.tot.kh) : "");
-            setS(t, "ban-tot", s.hasView ? U.q(s.tot.ban) : "");
+            setS(t, "ban-tot", s.hasActual ? U.q(s.tot.ban) : "");
             setS(t, "ch-tot", "");
             setS(t, "congchuan", self.dinhMucCong);
-            setS(t, "congthuc", s.hasView ? U.q(s.cong) : "");
+            setS(t, "congthuc", s.hasActual ? U.q(s.cong) : "");
 
             box.appendChild(t);
         });

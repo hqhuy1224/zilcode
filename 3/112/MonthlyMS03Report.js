@@ -13,12 +13,12 @@ var MonthlyMS03Report = {
     viewName: "MS03_View",
 
     groups: [
-        { key: "keg", label: "Keg 1L", short: "K", td: true },
-        { key: "bold", label: "Bold", short: "Bold", td: false },
-        { key: "light", label: "Light", short: "Light", td: false },
-        { key: "tb", label: "TB", short: "TB", td: false },
-        { key: "prelon", label: "Pre lon sleek", short: "Pre lon", td: true },
-        { key: "prechai", label: "Pre chai", short: "Pre chai", td: false }
+        { key: "keg", label: "Keg 1L", short: "K" },
+        { key: "bold", label: "Bold", short: "Bold" },
+        { key: "light", label: "Light", short: "Light" },
+        { key: "tb", label: "TB", short: "TB" },
+        { key: "prelon", label: "Pre lon sleek", short: "Pre lon" },
+        { key: "prechai", label: "Pre chai", short: "Pre chai" }
     ],
 
     products: {
@@ -322,7 +322,7 @@ var MonthlyMS03Report = {
                 }),
 
                 self.sel("sanpham", {
-                    select: "masanpham,tensanpham,trongdiem,ket",
+                    select: "masanpham,tensanpham,ket",
                     limit: 5000,
                     where: [
                         ["madoitac", "=", self.madoitac]
@@ -414,11 +414,6 @@ var MonthlyMS03Report = {
         });
 
         var sp = Object.create(null);
-        var spHasTd = false;
-
-        var groupTd = G.map(function () {
-            return false;
-        });
 
         (inp.sanpham || []).forEach(function (x) {
             var code = U.str(x.masanpham).toUpperCase();
@@ -434,16 +429,7 @@ var MonthlyMS03Report = {
                 return;
             }
 
-            if (Object.prototype.hasOwnProperty.call(x, "trongdiem")) {
-                spHasTd = true;
 
-                if (
-                    U.truthy(x.trongdiem) &&
-                    groupIndex[base.g] !== undefined
-                ) {
-                    groupTd[groupIndex[base.g]] = true;
-                }
-            }
         });
 
         function productOf(code) {
@@ -513,6 +499,8 @@ var MonthlyMS03Report = {
         });
 
         var target = Object.create(null);
+        var focusByNv = Object.create(null);
+        var focusTargetByNv = Object.create(null);
 
         (inp.ctDetails || []).forEach(function (d) {
             var ma = idToNv[String(d.idchitieu)];
@@ -535,7 +523,14 @@ var MonthlyMS03Report = {
             var t = target[ma] ||
                 (target[ma] = U.zeros(NG));
 
-            t[groupIndex[p.g]] += q;
+            var index = groupIndex[p.g];
+            t[index] += q;
+            if (/^(1|true|x)$/i.test(U.str(d.trongdiem))) {
+                var flags = focusByNv[ma] || (focusByNv[ma] = U.zeros(NG));
+                var focusTarget = focusTargetByNv[ma] || (focusTargetByNv[ma] = U.zeros(NG));
+                flags[index] = true;
+                focusTarget[index] += q;
+            }
         });
 
         var viewBy = Object.create(null);
@@ -572,9 +567,6 @@ var MonthlyMS03Report = {
             e.recs.push(rec);
         });
 
-        var defaultFlags = G.map(function (g) {
-            return !!g.td;
-        });
 
         var rows = [];
         var noCt = 0;
@@ -640,12 +632,12 @@ var MonthlyMS03Report = {
             });
 
             var ct = target[e.ma] || null;
-            var flags = spHasTd ? groupTd : defaultFlags;
+            var flags = focusByNv[e.ma] || U.zeros(NG);
             var khoan = ct ? ct.slice() : U.zeros(NG);
             var labels = [];
 
             G.forEach(function (g, i) {
-                if (ct && flags[i] && khoan[i] > 0) {
+                if (ct && flags[i] && (focusTargetByNv[e.ma] || [])[i] > 0) {
                     labels.push(g.short);
                 }
             });
@@ -672,7 +664,7 @@ var MonthlyMS03Report = {
                 hasCt: !!ct,
                 khoan: khoan,
                 khoanTong: total(khoan),
-                khoanTd: total(khoan, flags),
+                khoanTd: total(focusTargetByNv[e.ma] || U.zeros(NG)),
                 dat: dat,
                 datTong: total(dat),
                 datTd: total(dat, flags),
@@ -766,19 +758,6 @@ var MonthlyMS03Report = {
             );
         }
 
-        if (!spHasTd) {
-            warnings.push(
-                "Bảng sanpham không có cột trongdiem " +
-                "nên dùng bộ trọng điểm mặc định (" +
-                G.filter(function (g) {
-                    return g.td;
-                }).map(function (g) {
-                    return g.label;
-                }).join(", ") +
-                ")."
-            );
-        }
-
         return {
             nam: inp.nam,
             thang: inp.thang,
@@ -794,7 +773,7 @@ var MonthlyMS03Report = {
 
         var win = NUT.openReportWindow(self,
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/" + self.template + "?v=20261114.1"
+            n$.app.appid + "/" + self.template + "?v=20261119.2"
         );
 
         if (!win) {
@@ -913,6 +892,8 @@ var MonthlyMS03Report = {
             var tr = doc.createElement("tr");
             var i;
 
+            tr.setAttribute("data-report-province", r.tinh || "" );
+            tr.setAttribute("data-province-columns", "9" );
             cell(tr, r.stt);
             cell(tr, r.tlTf);
             cell(tr, r.hoten, "nm");

@@ -54,7 +54,7 @@ table.rpt{width:1856px;border-collapse:collapse;table-layout:fixed;background:#f
 .rpt .notes{text-align:left;vertical-align:top;font-size:12px;font-style:italic;line-height:17px;padding:2px 0 0}
 .rpt .notes strong{font-size:14px;text-decoration:underline}
 .rpt .supplier-name{vertical-align:bottom;font-size:18px;font-style:italic;font-weight:bold;padding-bottom:8px}
-.rpt .doc-footer td{height:18px;border-top:1px solid #888;border-bottom:1px solid #888;color:#000;font-size:12px;white-space:nowrap}
+.rpt .doc-footer td{height:18px;border-top:1px solid #888;color:#000;font-size:12px;white-space:nowrap}
 @page{size:A3 landscape;margin:8mm}
 @media print{
  body{margin:0}.toolbar,.warn{display:none!important}
@@ -77,9 +77,9 @@ table.rpt{width:1856px;border-collapse:collapse;table-layout:fixed;background:#f
  <colgroup></colgroup>
  <thead>
   <tr>
-   <td colspan="10" rowspan="3" class="logo-l"><img src="MS01-orit.png" alt="ORIT Workforce"></td>
+   <td colspan="10" rowspan="3" class="logo-l"><img src="https://demo.zilcode.com/media/3/13/7/orit.jpg" alt="ORIT Workforce"></td>
    <td colspan="24" class="t1">BÁO CÁO KẾT QUẢ LÀM VIỆC CỦA NVTT TẠI ĐIỂM BÁN</td>
-   <td colspan="6" rowspan="3" class="logo-r"><img src="MS01-habeco.jpeg" alt="HABECO HNB Trading Ltd."></td>
+   <td colspan="6" rowspan="3" class="logo-r"><img src="https://demo.zilcode.com/media/3/13/7/habeco.jpg" alt="HABECO HNB Trading Ltd."></td>
   </tr>
   <tr><td colspan="24" class="t2">Tháng <span class="red" data-f="thang"></span> năm <span class="red" data-f="nam"></span></td></tr>
   <tr><td colspan="24" class="t3">Khu vực/Thị trường: <span class="red" data-f="kv"></span></td></tr>
@@ -146,11 +146,11 @@ var MS01Template = {
     self.cell(tr,day===8?"Ngày công chuẩn":"Ngày công thực làm","pn"+(day===9?" tot":""));
     sum(tr,day===8?"congchuan":"congthuc","sv"+(day===9?" tot":""),3);
    }else if(day===10){
-    self.cell(tr,"NVTT","side sig-title",2);self.cell(tr,"TL/PG Sup/TF","side sig-title",2);
+    self.cell(tr,"NVTT","side sig-title",2);field(tr,"leaderRole","side sig-title",2);
    }else if(day===11){
     self.cell(tr,"(ký & ghi rõ họ tên)","side sig-sub",2);self.cell(tr,"(ký & ghi rõ họ tên)","side sig-sub",2);
    }else if(day===leaderDay){
-    field(tr,"nv","side sig-name",2);field(tr,"tl","side sig-name",2);
+    field(tr,"nv","side sig-name",2);field(tr,"leaderName","side sig-name",2);
    }else if(day===leaderDay+1){
     self.cell(tr,"Giám sát kinh doanh/Giám đốc PTTT","side sig-title",4);
    }else if(day===leaderDay+2||day===nDays-1){
@@ -159,6 +159,8 @@ var MS01Template = {
     field(tr,"gs","side sig-name",4);
    }else if(day===nDays-2){
     self.cell(tr,"Đại diện Nhà Cung ứng","side sig-title",4);
+   }else if(day===nDays){
+    self.cell(tr,"Nguyễn Thị Việt Hoa","side sig-name",4);
    }else self.cell(tr,"","side",4);
   }
   ["raw","converted"].forEach(function(kind){

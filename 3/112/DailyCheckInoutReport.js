@@ -127,7 +127,7 @@ var DailyCheckInoutReport = {
     renderReport: function (data, nam, thang, thiTruong, thiTruongText) {
         var win = window.open(
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/DailyCheckInoutReport.html?v=20261114.1"
+            n$.app.appid + "/DailyCheckInoutReport.html?v=20261119.2"
         );
 
         if (!win) {
@@ -162,7 +162,7 @@ var DailyCheckInoutReport = {
             var oldColgroup = table.querySelector("colgroup");
             if (oldColgroup) oldColgroup.remove();
             var colgroup = doc.createElement("colgroup");
-            var columnWidths = [30, 85, 80, 130, 170, 55, 85, 140, 65, 270, 100, 100, 100];
+            var columnWidths = [30, 80, 75, 110, 110, 55, 85, 140, 65, 160, 100, 100, 100];
             for (var ci = 0; ci < soNgay * 2; ci++) columnWidths.push(42);
             columnWidths.push(75);
             columnWidths.forEach(function (width) {
@@ -452,6 +452,8 @@ var DailyCheckInoutReport = {
                 }
 
                 addCell(formatNumber(violations), "center");   // Tổng vi phạm
+                row.setAttribute("data-report-province", rec.tenthitruong || rec.thitruong || "" );
+                row.setAttribute("data-province-columns", "12" );
                 body.appendChild(row);
             });
         };
