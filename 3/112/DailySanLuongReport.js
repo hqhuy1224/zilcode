@@ -89,12 +89,12 @@ var DailySanLuongReport = {
 
         self.unmapped[up] = true;
 
-        if (window.console) {
-            console.warn(
-                "[DailySanLuongReport] " +
-                "Mã SP không có cột sản lượng ngày: " + s
-            );
-        }
+        // if (window.console) {
+        //     console.warn(
+        //         "[DailySanLuongReport] " +
+        //         "Mã SP không có cột sản lượng ngày: " + s
+        //     );
+        // }
 
         return "";
     },
@@ -158,6 +158,7 @@ var DailySanLuongReport = {
                     (now.getMonth() + 1) + "'></td>" +
                 "</tr>" +
 
+                (n$.user.tag ? "" :
                 "<tr>" +
                     "<td>Khu vực</td>" +
                     "<td colspan='3'>" +
@@ -181,7 +182,8 @@ var DailySanLuongReport = {
                             "</option>" +
                         "</select>" +
                     "</td>" +
-                "</tr>" +
+                "</tr>"
+                ) +
                 "</table>",
 
             buttons:
@@ -338,7 +340,8 @@ var DailySanLuongReport = {
             return;
         }
 
-        var cbo = document.getElementById("cbo_ThiTruong");
+        var employeeTag = n$.user.tag;
+        var cbo = employeeTag ? null : document.getElementById("cbo_ThiTruong");
         var thiTruong = cbo ? String(cbo.value).trim() : "";
         var thiTruongText = "";
 
@@ -351,7 +354,7 @@ var DailySanLuongReport = {
             thiTruongText = cbo.options[cbo.selectedIndex].text;
         }
 
-        var vitrilv = document
+        var vitrilv = employeeTag ? "" : document
             .getElementById("cbo_ViTriLv").value;
 
         // var dulieu = document
@@ -415,6 +418,8 @@ var DailySanLuongReport = {
 
                 // Lọc thị trường trên dữ liệu trả về, giống DailyCheckInoutReport.
 
+                if (employeeTag) where.push(["manhanvien", "=", employeeTag]);
+
                 if (vitrilv == "BA") {
                     where.push(["vitrilv", "=", "BA"]);
                 } else if (vitrilv) {
@@ -436,6 +441,7 @@ var DailySanLuongReport = {
                     }
 
                     var data = res.result || [];
+                    if (employeeTag) data = data.filter(function (rec) { return rec.manhanvien === employeeTag; });
                     if (data.length >= 20000) {
                         NUT.alert(
                             "Dữ liệu tháng chạm giới hạn 20000 dòng. " +
@@ -487,14 +493,13 @@ var DailySanLuongReport = {
                 });
             };
 
+            var targetWhere = [["nam", "=", nam], ["thang", "=", thang], ["madoitac", "=", "HABECO"]];
+            if (employeeTag) targetWhere.push(["manhanvien", "=", employeeTag]);
+
             NUT.ds.select({
                 url: self.url + "data/chitieu",
                 limit: 20000,
-                where: [
-                    ["nam", "=", nam],
-                    ["thang", "=", thang],
-                    ["madoitac", "=", "HABECO"]
-                ]
+                where: targetWhere
             }, function (res3) {
                 if (
                     !res3.success ||
@@ -510,7 +515,9 @@ var DailySanLuongReport = {
                 var idToNv = {};
                 var ids = [];
 
-                (res3.result || []).forEach(function (h) {
+                (res3.result || []).filter(function (h) {
+                    return !employeeTag || h.manhanvien === employeeTag;
+                }).forEach(function (h) {
                     idToNv[h.idchitieu] = h.manhanvien;
                     ids.push(h.idchitieu);
                 });

@@ -4,7 +4,7 @@ var MonthlyMS01Report = {
     serviceIndex: 3,
     domainThiTruong: 1201,
     madoitac: "HABECO",
-    template: "MonthlyMS01Report.html?v=20261119.3",
+    template: "MonthlyMS01Report.html?v=20261118.2",
 
     /* ================= CẤU HÌNH ================= */
 
@@ -291,7 +291,7 @@ var MonthlyMS01Report = {
                 self.sel("chucvuhabeco", {
                     limit: 10000,
                     where: [
-                        ["machucvu", "in", "TF','TL','GDCN"],
+                        ["machucvu", "in", "TF','TL','GÐCN"],
                         ["or", ["ngaybatdau", "is", null], ["ngaybatdau", "<=", date]],
                         ["or", ["ngayketthuc", "is", null], ["ngayketthuc", ">=", date]]
                     ]
@@ -374,7 +374,26 @@ var MonthlyMS01Report = {
                 if (seenId[id]) return;
                 seenId[id] = true;
             }
-            records.push(r);
+            records.push(Object.assign({}, r, { reportCong: 0 }));
+        });
+
+        // Allocate at most one work day across all visits/points per employee/day.
+        // Earlier check-ins receive work credit first, matching DailyChamCongReport.
+        var workByDay = Object.create(null);
+        records.forEach(function (r) {
+            var day = Number(r.ngay);
+            if (!(day >= 1 && day <= nDays)) return;
+            var key = U.str(r.manhanvien) + "|" + day;
+            (workByDay[key] || (workByDay[key] = [])).push(r);
+        });
+        Object.keys(workByDay).forEach(function (key) {
+            var left = 1;
+            workByDay[key].sort(function (a, b) {
+                return (new Date(a.thoigianden) - new Date(b.thoigianden)) || (U.num(a.lan) - U.num(b.lan));
+            }).forEach(function (r) {
+                r.reportCong = Math.max(0, Math.min(U.num(r.cong), left));
+                left -= r.reportCong;
+            });
         });
 
         // chi tiết sản lượng: idchamcong → mã → {a, n, c}; mỗi (mã, loại) lấy dòng đầu tiên
@@ -444,7 +463,7 @@ var MonthlyMS01Report = {
             p.recs.slice().sort(function (x, y) { return U.num(x.lan) - U.num(y.lan); }).forEach(function (r) {
                 var day = Number(r.ngay);
                 if (!(day >= 1 && day <= nDays)) return;
-                pointCong += Math.max(0, U.num(r.cong));
+                pointCong += r.reportCong;
                 var per = bag[String(r.idchamcong)];
                 if (!per) return;
 
@@ -503,7 +522,6 @@ var MonthlyMS01Report = {
                        .filter(function (shift) { return shift && shift !== "00:00 - 00:00"; }).join("; ");
 
             return {
-                province: U.str(info.tenthitruong) || U.str(info.thitruong),
                 ma: p.ma,
                // kv: U.str(info.tenkhuvuc,"/",U.str(info.tenthitruong)) || "",
                 kv: [U.str(info.tenkhuvuc),U.str(info.tenthitruong)].filter(Boolean).join(" / "),

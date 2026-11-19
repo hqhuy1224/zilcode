@@ -44,6 +44,7 @@ var DailyChamCongReport = {
                     "<td>Tháng</td>" +
                     "<td><input id='num_Month' type='number' min='1' max='12' style='width:55px' value='" + (now.getMonth() + 1) + "'></td>" +
                 "</tr>" +
+                (n$.user.tag ? "" :
                 "<tr>" +
                     "<td>Khu vực</td>" +
                     "<td colspan='3'>" +
@@ -59,7 +60,8 @@ var DailyChamCongReport = {
                             "<option value='BA_'>BA_PartTime</option>" +
                         "</select>" +
                     "</td>" +
-                "</tr>" +
+                "</tr>"
+                ) +
              
                 "</table>",
 
@@ -79,14 +81,15 @@ var DailyChamCongReport = {
             return;
         }
 
-        var cbo = document.getElementById("cbo_ThiTruong");
+        var employeeTag = n$.user.tag;
+        var cbo = employeeTag ? null : document.getElementById("cbo_ThiTruong");
         var thiTruong = cbo ? String(cbo.value).trim() : "";
         var thiTruongText = "";
         if (cbo && cbo.options && cbo.selectedIndex >= 0 && thiTruong) {
             thiTruongText = cbo.options[cbo.selectedIndex].text;
         }
 
-        var viTri = document.getElementById("cbo_ViTri").value;
+        var viTri = employeeTag ? "" : document.getElementById("cbo_ViTri").value;
        // var dungDuLieuHieuChinh = document.getElementById("chk_Edit").checked ? 1 : 0;
         var date = nam + "-" + String(thang).padStart(2, "0") + "-15";
 
@@ -126,6 +129,8 @@ var DailyChamCongReport = {
             // Lọc thị trường trên dữ liệu trả về, giống DailyCheckInoutReport.
             // Lọc vị trí
 
+            if (employeeTag) where.push(["manhanvien", "=", employeeTag]);
+
             if (viTri === "BA") {
                 where.push(["vitrilv", "=", "BA"]);
             }
@@ -145,6 +150,7 @@ var DailyChamCongReport = {
                     return;
                 }
                 var data = res.result || [];
+                if (employeeTag) data = data.filter(function (rec) { return rec.manhanvien === employeeTag; });
                 if (data.length >= 20000) {
                     NUT.notify("Dữ liệu tháng chạm giới hạn 20000 dòng. Hãy chọn thêm vị trí để tránh xuất thiếu dữ liệu.", "red");
                     return;

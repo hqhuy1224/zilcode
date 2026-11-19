@@ -104,9 +104,10 @@ var Hrmsbaocaolamviecnv = {
 			});
 		});
 
-		sel("chamcong_v", { select: "sum(cong)cong", where: base }, function (c) {
+		sel("chamcong_v", { select: "idchamcong,manhanvien,ngay,cong", where: base, limit: 20000 }, function (c) {
 			if (!c) return fail("Không đọc được dữ liệu ngày công.");
-			data.cong = Number((c[0] || {}).cong) || 0;
+			if (c.length >= 20000) return fail("Dữ liệu ngày công chạm giới hạn 20000 dòng. Không thể tính đủ ngày công.");
+			data.cong = me.tinhCong(c);
 			step();
 		});
 
@@ -170,6 +171,23 @@ var Hrmsbaocaolamviecnv = {
 				if (days[k] === ky.ngay) data.today[ma] = (data.today[ma] || 0) + v;
 			});
 		});
+	},
+
+	// Deduplicate attendance and cap each employee's daily work at one day.
+	tinhCong: function (records) {
+		var seen = Object.create(null), byDay = Object.create(null);
+		records.forEach(function (r) {
+			if (r.idchamcong !== null && r.idchamcong !== undefined && r.idchamcong !== "") {
+				var id = String(r.idchamcong);
+				if (seen[id]) return;
+				seen[id] = true;
+			}
+			var day = Number(r.ngay);
+			if (!(day >= 1 && day <= 31)) return;
+			var key = String(r.manhanvien) + "|" + day;
+			byDay[key] = Math.min(1, (byDay[key] || 0) + Math.max(0, Number(r.cong) || 0));
+		});
+		return Object.keys(byDay).reduce(function (sum, key) { return sum + byDay[key]; }, 0);
 	},
 
 	show: function (data, ky) {

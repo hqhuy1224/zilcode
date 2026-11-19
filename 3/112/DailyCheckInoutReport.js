@@ -21,6 +21,7 @@ var DailyCheckInoutReport = {
                     "<td><input id='num_Month' type='number' min='1' max='12' " +
                     "style='width:55px' value='" + (now.getMonth() + 1) + "'></td>" +
                 "</tr>" +
+                (n$.user.tag ? "" :
                 "<tr>" +
                     "<td>Khu vực</td>" +
                     "<td colspan='3'>" +
@@ -39,7 +40,8 @@ var DailyCheckInoutReport = {
                             "<option value='BA_PT'>BA_PT</option>" +
                         "</select>" +
                     "</td>" +
-                "</tr>" +
+                "</tr>"
+                ) +
                
                 "</table>",
 
@@ -60,7 +62,8 @@ var DailyCheckInoutReport = {
             return;
         }
 
-        var cbo = document.getElementById("cbo_ThiTruong");
+        var employeeTag = n$.user.tag;
+        var cbo = employeeTag ? null : document.getElementById("cbo_ThiTruong");
         var thiTruong = cbo ? cbo.value : "";
 
         // Tên hiển thị của thị trường đang chọn (dùng cho dòng "Khu vực" trên báo cáo)
@@ -72,13 +75,15 @@ var DailyCheckInoutReport = {
         // var dungDuLieuHieuChinh =
         //     document.getElementById("chk_Edit").checked;
         var cboViTri = document.getElementById("cbo_ViTri");
-        var viTri = cboViTri ? cboViTri.value : "";
+        var viTri = !employeeTag && cboViTri ? cboViTri.value : "";
 
         var where = [
             ["nam", "=", nam],
             ["thang", "=", thang]
             //["dulieu", "=", dungDuLieuHieuChinh ? 1 : 0],
         ];
+
+        if (employeeTag) where.push(["manhanvien", "=", employeeTag]);
 
         if (viTri) {
             where.push(["vitrilv", "=", viTri]);
@@ -94,12 +99,15 @@ var DailyCheckInoutReport = {
             //     NUT.notify("Không có dữ liệu báo cáo!", "yellow");
             //     return;
             // }
-            if(!(res.success&&res.result.length)){
+            if (!(res.success && res.result && res.result.some(function (rec) {
+                return !employeeTag || rec.manhanvien === employeeTag;
+            }))) {
 				NUT.notify("Không có dữ liệu báo cáo!", "yellow");
 				return;
 			}
 
             var data = res.result;
+            if (employeeTag) data = data.filter(function (rec) { return rec.manhanvien === employeeTag; });
 
             // Lọc thị trường tại JavaScript
             if (thiTruong) {
