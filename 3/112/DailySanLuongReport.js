@@ -4,21 +4,21 @@ var DailySanLuongReport = {
     domainThiTruong: 1201,
 
     products: [
-        { key: "keg",       label: "Keg 1L",              dv: 12, td: false },
-        { key: "bold",      label: "Bold chai 20",        dv: 20, td: false },
-        { key: "light",     label: "Light chai 20",       dv: 20, td: false },
-        { key: "boldl",     label: "Bold lon 24",         dv: 24, td: false },
-        { key: "lightl",    label: "Light lon 24",        dv: 24, td: false },
-        { key: "trucbachl", label: "Trúc Bạch 24",        dv: 24, td: false },
-        { key: "hanoiprel", label: "Pre lon sleek 24", dv: 24, td: false },
-        { key: "hanoipre",  label: "Pre chai 20",      dv: 20, td: false }
+        { key: "keg",       label: "Keg 1L", td: false },
+        { key: "bold",      label: "Bold chai", td: false },
+        { key: "light",     label: "Light chai", td: false },
+        { key: "boldl",     label: "Bold lon", td: false },
+        { key: "lightl",    label: "Light lon", td: false },
+        { key: "trucbachl", label: "Trúc Bạch lon + chai", td: false },
+        { key: "hanoiprel", label: "Pre lon sleek", td: false },
+        { key: "hanoipre",  label: "Pre chai", td: false }
     ],
 
     ctCols: [
         { key: "keg",       label: "Keg 1L" },
         { key: "bold",      label: "Bold" },
         { key: "light",     label: "Light" },
-        { key: "trucbach",  label: "Trúc Bạch" },
+        { key: "trucbach",  label: "Trúc Bạch lon + chai" },
         { key: "hanoiprel", label: "Pre lon sleek" },
         { key: "hanoipre",  label: "Pre chai" }
     ],
@@ -30,7 +30,7 @@ var DailySanLuongReport = {
         BOLDL: "boldl",
         LIGHT: "light",
         LIGHTL: "lightl",
-        TRUCBACH: "trucbach",
+        TRUCBACH: "trucbachl",
         TRUCBACHL: "trucbachl",
         HANOIPRE: "hanoipre",
         HANOIPREL: "hanoiprel"
@@ -198,7 +198,34 @@ var DailySanLuongReport = {
         });
     },
 
+    toCases: function (code, quantity) {
+        if (!quantity) return 0;
+        code = String(code || "").trim().toUpperCase();
+        var ket = (DailySanLuongReport.ketByCode || {})[code];
+        if (!(Number.isFinite(ket) && ket > 0)) {
+            throw new Error("Sản phẩm " + code + " chưa có quy cách sanpham.ket hợp lệ. Dừng xuất để tránh sai số lượng két/thùng.");
+        }
+        return quantity / ket;
+    },
+
     attachSoldQty: function (records, callback) {
+        var self = DailySanLuongReport;
+        NUT.ds.select({ url: self.url + "data/sanpham", select: "masanpham,ket", limit: 5000 }, function (res) {
+            if (!res || !res.success || (res.result || []).length >= 5000) {
+                NUT.alert("Không đọc đủ danh mục quy cách sản phẩm. Dừng xuất báo cáo.", "red");
+                return;
+            }
+            self.ketByCode = Object.create(null);
+            (res.result || []).forEach(function (p) {
+                var code = String(p.masanpham || "").trim().toUpperCase();
+                var ket = Number(p.ket);
+                if (code && Number.isFinite(ket) && ket > 0) self.ketByCode[code] = ket;
+            });
+            self.attachSoldQtyData(records, callback);
+        });
+    },
+
+    attachSoldQtyData: function (records, callback) {
         var self = DailySanLuongReport;
         var ids = [];
         var seen = Object.create(null);
@@ -214,6 +241,7 @@ var DailySanLuongReport = {
 
         if (!ids.length) {
             records.forEach(function (rec) {
+                rec.soldCases = Object.create(null);
                 self.products.forEach(function (p) {
                     rec[p.key] = 0;
                 });
@@ -231,6 +259,7 @@ var DailySanLuongReport = {
         }
 
         var byId = Object.create(null);
+        var seenDetails = Object.create(null);
         var done = 0;
         var hadError = false;
 
@@ -239,20 +268,28 @@ var DailySanLuongReport = {
 
             if (done < chunks.length) return;
 
-            records.forEach(function (rec) {
-                var bag = byId[String(rec.idchamcong)] || {};
-
-                self.products.forEach(function (p) {
-                    var x = bag[p.key];
-
-                    rec[p.key] = x && x.hasC
-                        ? Math.max(
-                            0,
-                            (x.a || 0) + (x.n || 0) - (x.c || 0)
-                        )
-                        : 0;
+            // Calculate each exact product code before merging report columns.
+            // One code's closing stock must never complete another code's sale.
+            try {
+                records.forEach(function (rec) {
+                    var bag = byId[String(rec.idchamcong)] || {};
+                    rec.soldCases = Object.create(null);
+                    self.products.forEach(function (p) {
+                        rec[p.key] = 0;
+                        rec.soldCases[p.key] = 0;
+                    });
+                    Object.keys(bag).forEach(function (code) {
+                        var x = bag[code], key = self.productKey(code);
+                        if (!key || !x.hasC) return;
+                        var sold = Math.max(0, x.a + x.n - x.c);
+                        rec[key] += sold;
+                        rec.soldCases[key] += self.toCases(code, sold);
+                    });
                 });
-            });
+            } catch (error) {
+                NUT.alert(error.message, "red");
+                return;
+            }
 
             if (hadError) {
                 NUT.alert(
@@ -271,6 +308,7 @@ var DailySanLuongReport = {
             NUT.ds.select({
                 url: self.url + "data/chamcong_ct",
                 limit: 20000,
+                orderby: "idchamcongct",
                 where: [[
                     "idchamcong",
                     "in",
@@ -288,9 +326,9 @@ var DailySanLuongReport = {
 
                 (resCt.result || []).forEach(function (row) {
                     var id = String(row.idchamcong);
-                    var key = self.productKey(row.masanpham);
-
-                    if (!key) return;
+                    var code = String(row.masanpham || "").trim().toUpperCase();
+                    if (!self.productKey(code)) return;
+                    var key = code;
 
                     var bag = byId[id] || (byId[id] = {});
 
@@ -303,8 +341,11 @@ var DailySanLuongReport = {
                         };
                     }
 
-                    var qty = Number(row.soluong) || 0;
+                    var qty = Math.max(0, Number(row.soluong) || 0);
                     var kind = Number(row.daucuoi);
+                    var unique = JSON.stringify([id, String(row.masanpham || "").trim().toUpperCase(), kind]);
+                    if (seenDetails[unique]) return;
+                    seenDetails[unique] = true;
 
                     if (kind === 0) {
                         bag[key].a += qty;
@@ -332,7 +373,7 @@ var DailySanLuongReport = {
             document.getElementById("num_Month").value
         );
 
-        if (!nam || !thang || thang < 1 || thang > 12) {
+        if (!Number.isInteger(nam) || nam < 1 || nam > 9999 || !Number.isInteger(thang) || thang < 1 || thang > 12) {
             NUT.alert(
                 "Nhập năm, tháng trước khi thực hiện!",
                 "yellow"
@@ -442,7 +483,7 @@ var DailySanLuongReport = {
 
                     var data = res.result || [];
                     if (employeeTag) data = data.filter(function (rec) { return rec.manhanvien === employeeTag; });
-                    if (data.length >= 20000) {
+                    if ((res.result || []).length >= 20000) {
                         NUT.alert(
                             "Dữ liệu tháng chạm giới hạn 20000 dòng. " +
                             "Hãy chọn thêm vị trí để tránh xuất thiếu dữ liệu.",
@@ -468,6 +509,9 @@ var DailySanLuongReport = {
                             data,
                             function (rowsWithSold) {
                                 var miss = Object.keys(self.unmapped);
+                                if (miss.length) {
+                                    NUT.notify("Mã sản phẩm chưa có cột báo cáo, không được cộng: " + miss.join(", "), "yellow");
+                                }
 
                                 // if (miss.length) {
                                 //     NUT.alert(
@@ -649,7 +693,8 @@ var DailySanLuongReport = {
             }
 
             function r1(v) {
-                return (Math.round(v * 10) / 10).toFixed(1).replace(".", ",");
+                var rounded = Math.round(v * 10) / 10;
+                return rounded === 0 ? "" : rounded.toFixed(1).replace(".", ",");
             }
 
             function r2(v) {
@@ -721,7 +766,8 @@ var DailySanLuongReport = {
                 if (!g) {
                     g = groups[key] = {
                         info: rec,
-                        days: []
+                        days: [],
+                        cases: zeros(NP)
                     };
                 }
 
@@ -740,6 +786,7 @@ var DailySanLuongReport = {
                         0,
                         num(rec[P[j].key])
                     );
+                    g.cases[j] += num((rec.soldCases || {})[P[j].key]);
                 }
             });
 
@@ -789,11 +836,9 @@ var DailySanLuongReport = {
 
                 var grand = 0;
 
-                // Quy đổi và làm tròn từng sản phẩm/từng dòng.
+                // Convert before summing; round only for display.
                 for (var j = 0; j < NP; j++) {
-                    sum[j] = Math.round(
-                        sum[j] / P[j].dv * 10
-                    ) / 10;
+                    sum[j] = g.cases[j];
 
                     grand += sum[j];
                     totalSum[j] += sum[j];

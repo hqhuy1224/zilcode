@@ -84,7 +84,7 @@ var MonthlyMS01Report = {
         // danh sách khu vực (tài khoản có giới hạn khu vực thì chỉ thấy khu vực của mình)
         var regions = [];
         try {
-            var opt = { select: "makhuvuc,tenkhuvuc,tenthitruong,thitruong,stt", orderby: "stt,thitruong", limit: 5000 };
+            var opt = { select: "makhuvuc,tenkhuvuc,stt", orderby: "stt", limit: 5000 };
            // if (n$.user.orgs) opt.where = [["makhuvuc", "in", n$.user.orgs]];
             regions = await self.sel("khuvuc", opt);
         } catch (e) {
@@ -92,7 +92,7 @@ var MonthlyMS01Report = {
         }
 
         var ttOptions = "<option value=''>-- Tất cả --</option>" + regions.map(function (r) {
-            return "<option value='" + U.esc(r.makhuvuc) + "'>" + U.esc(r.tenthitruong) + "</option>";
+            return "<option value='" + U.esc(r.makhuvuc) + "'>" + U.esc(r.tenkhuvuc) + "</option>";
         }).join("");
 
         NUT.w2popup.open({
@@ -323,7 +323,7 @@ var MonthlyMS01Report = {
                 .filter(function (x) { return x !== null && x !== undefined; });
 
             var parts = await Promise.all([
-                ids.length ? self.selectIn("chamcong_ct", "idchamcong", ids, { limit: 20000 }) : [],
+                ids.length ? self.selectIn("chamcong_ct", "idchamcong", ids, { limit: 20000, orderby: "idchamcongct" }) : [],
                 headIds.length ? self.selectIn("chitieu_ct", "idchitieu", headIds, { limit: 20000 }) : []
             ]);
 
@@ -369,7 +369,7 @@ var MonthlyMS01Report = {
         // bỏ trùng theo idchamcong (view JOIN TL/TF làm một bản ghi xuất hiện 2 lần)
         var seenId = Object.create(null), records = [];
         (inp.records || []).forEach(function (r) {
-            if (r.idchamcong !== null && r.idchamcong !== undefined) {
+            if (r.idchamcong !== null && r.idchamcong !== undefined && r.idchamcong !== "") {
                 var id = String(r.idchamcong);
                 if (seenId[id]) return;
                 seenId[id] = true;
@@ -433,7 +433,7 @@ var MonthlyMS01Report = {
         var pagesBy = Object.create(null), order = [];
         records.forEach(function (r) {
             var ma = U.str(r.manhanvien), pt = U.str(r.madiemban);
-            if (!ma || !pt || !U.str(r.thoigianden)) return;
+            if (!ma || !pt || (!U.str(r.thoigianden) && !r.reportCong && !U.str(r.chamcong))) return;
             var key = ma + "\u0001" + pt;
             var p = pagesBy[key];
             if (!p) { p = pagesBy[key] = { ma: ma, pt: pt, recs: [], info: r }; order.push(p); }
@@ -460,7 +460,7 @@ var MonthlyMS01Report = {
             var days = [];
             for (var d = 0; d <= nDays; d++) days.push(null);
 
-            p.recs.slice().sort(function (x, y) { return U.num(x.lan) - U.num(y.lan); }).forEach(function (r) {
+            p.recs.slice().sort(function (x, y) { return (new Date(x.thoigianden) - new Date(y.thoigianden)) || (U.num(x.lan) - U.num(y.lan)); }).forEach(function (r) {
                 var day = Number(r.ngay);
                 if (!(day >= 1 && day <= nDays)) return;
                 pointCong += r.reportCong;
@@ -524,7 +524,7 @@ var MonthlyMS01Report = {
             return {
                 ma: p.ma,
                // kv: U.str(info.tenkhuvuc,"/",U.str(info.tenthitruong)) || "",
-                kv: [U.str(info.tenkhuvuc),U.str(info.tenthitruong)].filter(Boolean).join(" / "),
+                kv: [U.str(info.tenkhuvuc),U.str(info.tenkhuvuc)].filter(Boolean).join(" / "),
                 nv: U.str(info.hotenNVTT) || U.str(info.hoten) || p.ma,
                 tl: role.TL[kv] || "",
                 tf: role.TF[kv] || "",
@@ -559,7 +559,11 @@ var MonthlyMS01Report = {
         //     warnings.push("Cột Keg 1L để trống vì danh mục sanpham chưa có mã keg.");
         // }
 
-        return { nam: inp.nam, thang: inp.thang, nDays: nDays, pages: pages };
+        var warnings = [];
+        if (Object.keys(unmapped).length) warnings.push("Mã sản phẩm chưa được tính: " + Object.keys(unmapped).join(", "));
+        if (Object.keys(noCol).length) warnings.push("Sản phẩm có trong tổng kết nhưng chưa có cột ngày: " + Object.keys(noCol).join(", "));
+        if (Object.keys(noCt).length) warnings.push("Nhân viên chưa có chỉ tiêu tháng: " + Object.keys(noCt).join(", "));
+        return { nam: inp.nam, thang: inp.thang, nDays: nDays, pages: pages, warnings: warnings };
     },
 
     /* ================= VẼ BÁO CÁO ================= */

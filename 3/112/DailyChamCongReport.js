@@ -76,7 +76,7 @@ var DailyChamCongReport = {
         var nam = Number(document.getElementById("num_Year").value);
         var thang = Number(document.getElementById("num_Month").value);
 
-        if (!nam || !thang || thang < 1 || thang > 12) {
+        if (!Number.isInteger(nam) || nam < 1 || nam > 9999 || !Number.isInteger(thang) || thang < 1 || thang > 12) {
             NUT.notify("Nhập năm và tháng hợp lệ!", "yellow");
             return;
         }
@@ -151,7 +151,7 @@ var DailyChamCongReport = {
                 }
                 var data = res.result || [];
                 if (employeeTag) data = data.filter(function (rec) { return rec.manhanvien === employeeTag; });
-                if (data.length >= 20000) {
+                if ((res.result || []).length >= 20000) {
                     NUT.notify("Dữ liệu tháng chạm giới hạn 20000 dòng. Hãy chọn thêm vị trí để tránh xuất thiếu dữ liệu.", "red");
                     return;
                 }
@@ -277,11 +277,11 @@ var DailyChamCongReport = {
                 return true;
             });
 
-            var congOf = Object.create(null);   // idchamcong → công được tính
+            var congOf = new Map();   // idchamcong → công được tính
             (function () {
                 var byDay = Object.create(null);
                 data.forEach(function (r) {
-                    if (!num(r.cong) || !hasValue(r.idchamcong)) return;
+                    if (!(Number(r.ngay) >= 1 && Number(r.ngay) <= soNgay)) return;
                     var k = String(r.manhanvien) + "|" + String(r.ngay);
                     (byDay[k] || (byDay[k] = [])).push(r);
                 });
@@ -292,7 +292,7 @@ var DailyChamCongReport = {
                     }).forEach(function (r) {
                         var take = Math.max(0, Math.min(num(r.cong), left));
                         left -= take;
-                        congOf[String(r.idchamcong)] = take;
+                        congOf.set(r, take);
                     });
                 });
             })();
@@ -501,7 +501,7 @@ var DailyChamCongReport = {
                 if (!day || day < 1 || day > soNgay) continue;
 
                 // Công của lần chấm công này (đã bỏ trùng và giới hạn tối đa mỗi ngày)
-                var cong = hasValue(rec.idchamcong) ? (congOf[String(rec.idchamcong)] || 0) : num(rec.cong);
+                var cong = congOf.get(rec) || 0;
 
                 if (cong > 0) {
                     dayCong[day] = (dayCong[day] || 0) + cong;

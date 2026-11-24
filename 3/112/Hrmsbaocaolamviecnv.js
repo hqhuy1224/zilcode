@@ -1,8 +1,16 @@
 // Báo cáo làm việc: ngày công + sản lượng + khoán của nhân viên trong tháng.
 var Hrmsbaocaolamviecnv = {
 	SERVICE_ID: 3,
+	// Same KPI groups and target partner as DailySanLuongReport.
+	TARGET_PARTNER: "HABECO",
+	KPI_GROUPS: {
+		KEG: "keg", KEG1L: "keg", BOLD: "bold", BOLDL: "bold",
+		LIGHT: "light", LIGHTL: "light", TRUCBACH: "trucbach", TRUCBACHL: "trucbach",
+		HANOIPREL: "hanoiprel", HANOIPRE: "hanoipre"
+	},
 	EMP: function () { return String(n$.user.tag || "").trim(); },
 	url: null,
+	isFocus: function (value) { return /^(1|true|x)$/i.test(String(value == null ? "" : value).trim()); },
 
 	ICON: {
 		calendar: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>'
@@ -78,18 +86,31 @@ var Hrmsbaocaolamviecnv = {
 
 		var sel = function (table, opt, cb) {
 			opt.url = me.url + "data/" + table;
-			NUT.ds.select(opt, function (res) { cb(res && res.success ? res.result || [] : null); });
+			opt.limit = opt.limit || 20000;
+			NUT.ds.select(opt, function (res) {
+				var rows = res && res.success ? res.result || [] : null;
+				cb(rows && rows.length < opt.limit ? rows : null);
+			});
 		};
 		var selByIds = function (table, key, ids, cb) {
 			if (!ids.length) return cb([]);
-			var set = {}; ids.forEach(function (i) { set[String(i)] = 1; });
-			sel(table, { where: [[key, ">=", Math.min.apply(null, ids)], [key, "<=", Math.max.apply(null, ids)]] }, function (r) {
-				cb(r ? r.filter(function (x) { return set[String(x[key])]; }) : null);
-			});
+			var out = [], offset = 0;
+			var next = function () {
+				var chunk = ids.slice(offset, offset + 150);
+				if (!chunk.length) return cb(out);
+				offset += chunk.length;
+				sel(table, { where: [[key, "in", chunk.join("','")]],
+					orderby: table === "chamcong_ct" ? "idchamcongct" : "idchitieu" }, function (rows) {
+					if (!rows) return cb(null);
+					out = out.concat(rows);
+					next();
+				});
+			};
+			next();
 		};
 
 		var base = [["nam", "=", ky.nam], ["thang", "=", ky.thang], ["manhanvien", "=", emp]];
-		var data = { cong: 0, goal: {}, tdLine: {}, hasTarget: false, sold: {}, today: {}, names: {}, partners: {}, visits: 0, days: 0, hoten: "" };
+		var data = { cong: 0, goal: {}, tdLine: {}, focusGoal: {}, hasTarget: false, sold: {}, today: {}, names: {}, partners: {}, visits: 0, days: 0, hoten: "" };
 		var pending = 4, failed = false;
 		var fail = function (m) { if (failed) return; failed = true; NUT.notify(m || "Không đọc được dữ liệu báo cáo. Vui lòng thử lại.", "red"); };
 		var step = function () { if (!failed && --pending === 0) { me.show(data, ky); if (done) done(); } };
@@ -111,14 +132,18 @@ var Hrmsbaocaolamviecnv = {
 			step();
 		});
 
-		sel("chitieu", { select: "idchitieu", where: base }, function (t) {
+		sel("chitieu", { select: "idchitieu", where: base.concat([["madoitac", "=", me.TARGET_PARTNER]]) }, function (t) {
 			if (!t) return fail("Không đọc được chỉ tiêu tháng.");
 			selByIds("chitieu_ct", "idchitieu", t.map(function (x) { return Number(x.idchitieu); }), function (l) {
 				if (!l) return fail("Không đọc được chi tiết chỉ tiêu tháng.");
 				l.forEach(function (x) {
-					var q = Number(x.soluong) || 0; if (!x.masanpham) return;
+					var q = Math.max(0, Number(x.soluong) || 0); if (!x.masanpham) return;
+					x.masanpham = String(x.masanpham).trim().toUpperCase();
 					data.goal[x.masanpham] = (data.goal[x.masanpham] || 0) + q;
-					if (x.trongdiem != null) data.tdLine[x.masanpham] = !!x.trongdiem;
+					if (me.isFocus(x.trongdiem)) {
+						data.tdLine[x.masanpham] = true;
+						data.focusGoal[x.masanpham] = (data.focusGoal[x.masanpham] || 0) + q;
+					}
 					data.hasTarget = true;
 				});
 				step();
@@ -140,9 +165,10 @@ var Hrmsbaocaolamviecnv = {
 				sel("sanpham", { select: "masanpham,tensanpham,trongdiem,madoitac,ket,thutu" }, function (sp) {
 					if (!sp) return fail("Không đọc được danh mục sản phẩm (quy cách két).");
 					sp.forEach(function (s) {
+						s.masanpham = String(s.masanpham || "").trim().toUpperCase();
 						var tt = s.thutu == null || s.thutu === "" ? null : Number(s.thutu);
 						data.names[s.masanpham] = {
-							ten: s.tensanpham || s.masanpham, td: !!s.trongdiem, dt: s.madoitac || "", ket: Number(s.ket) || 0,
+							ten: s.tensanpham || s.masanpham, td: me.isFocus(s.trongdiem), dt: s.madoitac || "", ket: Number(s.ket) || 0,
 							tt: isFinite(tt) ? tt : null
 						};
 					});
@@ -157,11 +183,17 @@ var Hrmsbaocaolamviecnv = {
 
 	// daucuoi: 0 = Tồn đầu, 2 = Nhập NPP, 1 = Tồn cuối. Số bán mỗi lần = đầu + nhập − cuối (lần phải có tồn cuối)
 	tinh: function (data, list, days, ky) {
-		var by = {};
+		var by = Object.create(null), seen = Object.create(null);
 		list.forEach(function (x) {
-			var k = String(x.idchamcong), s = by[k] || (by[k] = {}), p = s[x.masanpham] || (s[x.masanpham] = { a: 0, n: 0, c: null });
+			var k = String(x.idchamcong), code = String(x.masanpham || "").trim().toUpperCase();
 			var q = Math.max(0, Number(x.soluong) || 0), t = Number(x.daucuoi);
-			if (t === 0) p.a += q; else if (t === 2) p.n += q; else if (t === 1) p.c = (p.c || 0) + q;
+			if (!Object.prototype.hasOwnProperty.call(days, k) || !code || [0, 1, 2].indexOf(t) < 0) return;
+			var unique = JSON.stringify([k, code, t]);
+			if (seen[unique]) return;
+			seen[unique] = true;
+			var s = by[k] || (by[k] = Object.create(null));
+			var p = s[code] || (s[code] = { a: 0, n: 0, c: null });
+			if (t === 0) p.a = q; else if (t === 2) p.n = q; else p.c = q;
 		});
 		Object.keys(by).forEach(function (k) {
 			Object.keys(by[k]).forEach(function (ma) {
@@ -190,6 +222,35 @@ var Hrmsbaocaolamviecnv = {
 		return Object.keys(byDay).reduce(function (sum, key) { return sum + byDay[key]; }, 0);
 	},
 
+	calculateKpi: function (data) {
+		var me = Hrmsbaocaolamviecnv, focusGroups = Object.create(null);
+		var result = { sold: 0, goal: 0, focusSold: 0, focusGoal: 0, focusGroups: focusGroups };
+		Object.keys(data.goal || {}).forEach(function (code) {
+			var group = me.KPI_GROUPS[code];
+			if (!group) return;
+			result.goal += Number(data.goal[code]) || 0;
+			if (me.isFocus((data.tdLine || {})[code])) {
+				focusGroups[group] = true;
+				// Only flagged target lines contribute to the focus denominator.
+				result.focusGoal += Number((data.focusGoal || {})[code]) || 0;
+			}
+		});
+		Object.keys(data.sold || {}).forEach(function (code) {
+			var group = me.KPI_GROUPS[code], raw = Number(data.sold[code]) || 0;
+			if (!group || !raw) return;
+			var ket = Number((data.names[code] || {}).ket);
+			if (!(Number.isFinite(ket) && ket > 0)) {
+				throw new Error("Sản phẩm " + code + " chưa có quy cách sanpham.ket hợp lệ. Không thể tính % hoàn thành.");
+			}
+			var sold = raw / ket;
+			result.sold += sold;
+			if (focusGroups[group]) result.focusSold += sold;
+		});
+		result.percent = result.goal ? Math.round(100 * result.sold / result.goal) : null;
+		result.focusPercent = result.focusGoal ? Math.round(100 * result.focusSold / result.focusGoal) : null;
+		return result;
+	},
+
 	show: function (data, ky) {
 		var me = Hrmsbaocaolamviecnv;
 		var n = function (v) { return Number(v) || 0; };
@@ -203,28 +264,24 @@ var Hrmsbaocaolamviecnv = {
 		var qcach = function (m) { return noKet(m) ? '<span class="qc no">Chưa có quy cách</span>' : '<span class="qc">' + fmt(data.names[m].ket) + ' ' + unit(m) + '/két</span>'; };
 		var fk = function (v) { return (Math.round(n(v) * 10) / 10).toLocaleString("vi-VN", { maximumFractionDigits: 1 }); };
 		var fk1 = fk;
-		var isTd = function (m) { return data.tdLine[m] != null ? data.tdLine[m] : !!info(m).td; };
+		var kpi;
+		try { kpi = me.calculateKpi(data); }
+		catch (error) { NUT.notify(error.message, "red"); return; }
+		var isTd = function (m) { return !!kpi.focusGroups[me.KPI_GROUPS[m]]; };
 		var pname = function (d) { return d ? (data.partners[d] || d) : "Khác"; };
 
 		var codes = Object.keys(data.goal);
 		Object.keys(data.sold).forEach(function (m) { if (codes.indexOf(m) < 0 && n(data.sold[m]) > 0) codes.push(m); });
+		codes = codes.filter(function (m) { return !!me.KPI_GROUPS[m]; });
 		var ord = function (m) { var t = info(m).tt; return t == null ? Infinity : t; };
 		codes.sort(function (a, b) {
 			var oa = ord(a), ob = ord(b);
 			return String(info(a).dt).localeCompare(String(info(b).dt)) || (oa === ob ? 0 : oa < ob ? -1 : 1) || String(info(a).ten).localeCompare(String(info(b).ten));
 		});
 
-		var tg = 0, td = 0, lkAll = 0, tgTd = 0, tdTd = 0, lkTd = 0;
-		Object.keys(data.goal).forEach(function (m) {
-			var k = n(data.goal[m]); if (k <= 0) return;
-			var s = noKet(m) ? 0 : qk(m, n(data.sold[m])), d = Math.min(k, s);
-			tg += k; td += d; lkAll += s;
-			if (isTd(m)) { tgTd += k; tdTd += d; lkTd += s; }
-		});
-		var tot = tg ? Math.round(td * 100 / tg) : null;
-		var totTd = tgTd ? Math.round(tdTd * 100 / tgTd) : null;
-		var sumSold = 0, sumGoal = 0;
-		codes.forEach(function (m) { sumGoal += n(data.goal[m]); if (!noKet(m)) sumSold += qk(m, n(data.sold[m])); });
+		var tg = kpi.goal, lkAll = kpi.sold, tgTd = kpi.focusGoal, lkTd = kpi.focusSold;
+		var tot = kpi.percent, totTd = kpi.focusPercent;
+		var sumSold = kpi.sold, sumGoal = kpi.goal;
 		var card = function (label, val, sub, pct) {
 			var c = pct == null ? "" : lvl(pct);
 			return '<div class="hbc-card"><span class="l"><span>' + label + '</span></span>' +

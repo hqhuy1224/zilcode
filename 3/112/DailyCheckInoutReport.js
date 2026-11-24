@@ -37,7 +37,7 @@ var DailyCheckInoutReport = {
                         "<select id='cbo_ViTri' name='cbo_ViTri'>" +
                             "<option value='' selected>-- Tất cả --</option>" +
                             "<option value='BA'>BA</option>" +
-                            "<option value='BA_PT'>BA_PT</option>" +
+                            "<option value='BA_'>BA_PartTime</option>" +
                         "</select>" +
                     "</td>" +
                 "</tr>"
@@ -57,7 +57,7 @@ var DailyCheckInoutReport = {
         var nam = Number(document.getElementById("num_Year").value);
         var thang = Number(document.getElementById("num_Month").value);
 
-        if (!nam || !thang || thang < 1 || thang > 12) {
+        if (!Number.isInteger(nam) || nam < 1 || nam > 9999 || !Number.isInteger(thang) || thang < 1 || thang > 12) {
             NUT.notify("Nhập năm và tháng hợp lệ!", "yellow");
             return;
         }
@@ -85,8 +85,10 @@ var DailyCheckInoutReport = {
 
         if (employeeTag) where.push(["manhanvien", "=", employeeTag]);
 
-        if (viTri) {
-            where.push(["vitrilv", "=", viTri]);
+        if (viTri === "BA") {
+            where.push(["vitrilv", "=", "BA"]);
+        } else if (viTri) {
+            where.push(["vitrilv", "like", viTri + "*"]);
         }
 
         NUT.ds.select({
@@ -99,13 +101,17 @@ var DailyCheckInoutReport = {
             //     NUT.notify("Không có dữ liệu báo cáo!", "yellow");
             //     return;
             // }
-            if (!(res.success && res.result && res.result.some(function (rec) {
+            if (!(res && res.success && res.result && res.result.some(function (rec) {
                 return !employeeTag || rec.manhanvien === employeeTag;
             }))) {
 				NUT.notify("Không có dữ liệu báo cáo!", "yellow");
 				return;
 			}
 
+            if (res.result.length >= 20000) {
+                NUT.notify("Dữ liệu chạm giới hạn 20000 dòng. Hãy thu hẹp bộ lọc để tránh xuất thiếu.", "red");
+                return;
+            }
             var data = res.result;
             if (employeeTag) data = data.filter(function (rec) { return rec.manhanvien === employeeTag; });
 
@@ -426,9 +432,10 @@ var DailyCheckInoutReport = {
 
                     info.records.forEach(function (r) {
 
-                        if (r.chamcong) {
-                            var code = String(r.chamcong).trim();
-                            if (code && leaveCodes.indexOf(code) < 0) leaveCodes.push(code);
+                        // Giá trị công dạng số không phải mã nghỉ: vẫn xét giờ check in/out.
+                        var code = hasValue(r.chamcong) ? String(r.chamcong).trim() : "";
+                        if (code && isNaN(Number(code.replace(",", ".")))) {
+                            if (leaveCodes.indexOf(code) < 0) leaveCodes.push(code);
                             return;
                         }
 
