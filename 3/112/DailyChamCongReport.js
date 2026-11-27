@@ -194,7 +194,7 @@ var DailyChamCongReport = {
 
         var win = window.open(
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/DailyChamCongReport.html?v=20261119.1"
+            n$.app.appid + "/DailyChamCongReport.html"
         );
 
         if (!win) {

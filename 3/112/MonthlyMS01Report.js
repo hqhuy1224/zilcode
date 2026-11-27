@@ -4,7 +4,7 @@ var MonthlyMS01Report = {
     serviceIndex: 3,
     domainThiTruong: 1201,
     madoitac: "HABECO",
-    template: "MonthlyMS01Report.html?v=20261118.2",
+    template: "MonthlyMS01Report.html",
 
     /* ================= CẤU HÌNH ================= */
 

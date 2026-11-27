@@ -65,7 +65,7 @@ var MonthlyMS02Report={
 				NUT.notify("Không có dữ liệu báo cáo!","yellow");
 				return;
 			}
-			var win=window.open("site/"+n$.user.siteid+"/"+n$.app.appid+"/Monthlyms02reportba.html?v=20261119.1");
+			var win=window.open("site/"+n$.user.siteid+"/"+n$.app.appid+"/Monthlyms02reportba.html");
 			if(!win){NUT.notify("Trình duyệt đã chặn cửa sổ báo cáo!","yellow");return;}
 			win.onload=function(){
 				MonthlyMS02Report.render(win,data,parseInt(nam,10),parseInt(thang,10),thiTruongSel);

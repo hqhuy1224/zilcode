@@ -165,7 +165,7 @@
         .report-date { margin-top: 10px; font-style: italic; font-size: 10pt; }
 
         /* ===== In ===== */
-        @page { size: A3 landscape; margin: 8mm; }
+        @page { size: A4 landscape; margin: 5mm; }
 
         @media print {
             body { margin: 0; padding: 0; }
@@ -185,6 +185,31 @@
     </style>
     <script src="ReportFrozenColumns.js?v=20261114.1" defer></script>
 <script src="ReportProvinceColors.js?v=20261119.1" defer></script>
+
+<style>
+@media print {
+ html,body{height:auto!important;overflow:visible!important}
+ body{width:var(--print-width);zoom:var(--print-zoom,1);margin:0;padding:0}
+ #divReport,.report-title-table,.head-block{width:100%!important}
+ #tblReport{zoom:1!important}
+ .report-container{overflow:visible;max-height:none}
+}
+</style>
+<script>
+window.addEventListener('beforeprint', function () {
+ var table = document.querySelector('#tblReport, #tblData');
+ if (!table) return;
+ document.body.style.removeProperty('--print-width');
+ document.body.style.removeProperty('--print-zoom');
+ var width = table.offsetWidth;
+ document.body.style.setProperty('--print-width', width + 'px');
+ document.body.style.setProperty('--print-zoom', (287 * 96 / 25.4 - 1) / width);
+});
+window.addEventListener('afterprint', function () {
+ document.body.style.removeProperty('--print-width');
+ document.body.style.removeProperty('--print-zoom');
+});
+</script>
 </head>
 
 <body>
@@ -343,11 +368,11 @@
                 'xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
                 '<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
                 "<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>" +
-                "<x:Name>SanLuong</x:Name><x:WorksheetOptions><x:DoNotDisplayGridlines/>" +
+                "<x:Name>SanLuong</x:Name><x:WorksheetOptions><x:DoNotDisplayGridlines/><x:FitToPage/><x:Print><x:FitWidth>1</x:FitWidth><x:FitHeight>0</x:FitHeight><x:PaperSizeIndex>9</x:PaperSizeIndex></x:Print>" +
                 "</x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets>" +
                 
                 "</x:ExcelWorkbook></xml><![endif]-->" +
-                "<style>table{border-collapse:collapse;table-layout:fixed;}</style></head>" +
+                "<style>@page{size:29.7cm 21cm;mso-page-orientation:landscape;margin:0.5cm;}table{border-collapse:collapse;table-layout:fixed;}</style></head>" +
                 '<body><table border="0" cellpadding="0" cellspacing="0">' +
                 colgroup + top + rowsHtml(thead.rows, "head") + rowsHtml(tbody.rows, "body") + bottom +
                 "</table></body></html>";

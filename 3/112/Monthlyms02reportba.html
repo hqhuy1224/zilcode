@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <title>Bảng tổng hợp chấm công tháng</title>
 <style>
-	@page { size: A3 landscape; margin: 8mm; }
+	@page { size: A4 landscape; margin: 5mm; }
 	* { box-sizing: border-box; }
 	body { font-family: "Times New Roman", Times, serif; font-size: 12px; color: #000; margin: 10px; }
 	.no-print { position: fixed; top: 8px; right: 8px; z-index: 9; }
@@ -63,6 +63,31 @@
 </style>
     <script src="ReportFrozenColumns.js?v=20261114.1" defer></script>
 <script src="ReportProvinceColors.js?v=20261119.1" defer></script>
+
+<style>
+@media print {
+ html,body{height:auto!important;overflow:visible!important}
+ body{width:var(--print-width);zoom:var(--print-zoom,1);margin:0;padding:0}
+ #divReport,.report-title-table,.head-block{width:100%!important}
+ #tblReport{zoom:1!important}
+ .report-container{overflow:visible;max-height:none}
+}
+</style>
+<script>
+window.addEventListener('beforeprint', function () {
+ var table = document.querySelector('#tblReport, #tblData');
+ if (!table) return;
+ document.body.style.removeProperty('--print-width');
+ document.body.style.removeProperty('--print-zoom');
+ var width = table.offsetWidth;
+ document.body.style.setProperty('--print-width', width + 'px');
+ document.body.style.setProperty('--print-zoom', (287 * 96 / 25.4 - 1) / width);
+});
+window.addEventListener('afterprint', function () {
+ document.body.style.removeProperty('--print-width');
+ document.body.style.removeProperty('--print-zoom');
+});
+</script>
 </head>
 <body>
 

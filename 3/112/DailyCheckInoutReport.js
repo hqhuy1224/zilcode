@@ -141,7 +141,7 @@ var DailyCheckInoutReport = {
     renderReport: function (data, nam, thang, thiTruong, thiTruongText) {
         var win = window.open(
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/DailyCheckInoutReport.html?v=20261119.2"
+            n$.app.appid + "/DailyCheckInoutReport.html"
         );
 
         if (!win) {

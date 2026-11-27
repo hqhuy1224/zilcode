@@ -635,7 +635,7 @@ var DailySanLuongReport = {
 
         var win = window.open(
             "site/" + n$.user.siteid + "/" +
-            n$.app.appid + "/DailySanLuongReport.html?v=20261119.1"
+            n$.app.appid + "/DailySanLuongReport.html"
         );
 
         if (!win) {
@@ -682,6 +682,25 @@ var DailySanLuongReport = {
             var NCT = CT.length;
 
             var soNgay = new Date(nam, thang, 0).getDate();
+            // Tuần thứ Hai–Chủ nhật, chỉ gồm các ngày trong tháng đang chọn.
+            var weeks = [];
+            var weekByDay = [];
+            var weekEnd = 7 - ((new Date(nam, thang - 1, 1).getDay() + 6) % 7);
+            for (var start = 1; start <= soNgay; start = weekEnd + 1, weekEnd += 7) {
+                var end = Math.min(weekEnd, soNgay);
+                for (var day = start; day <= end; day++) weekByDay[day] = weeks.length;
+                weeks.push({ start: start, end: end });
+            }
+
+            var weeklyLabels = P.map(function (p) {
+                var sizes = [];
+                Object.keys(self.ketByCode || {}).forEach(function (code) {
+                    if ((self.maSanPhamCT[code] || code.toLowerCase()) !== p.key) return;
+                    var ket = self.ketByCode[code];
+                    if (sizes.indexOf(ket) < 0) sizes.push(ket);
+                });
+                return p.label + (sizes.length ? " " + sizes.join("/") : "");
+            });
 
             function num(v) {
                 var n = Number(v);
@@ -767,7 +786,8 @@ var DailySanLuongReport = {
                     g = groups[key] = {
                         info: rec,
                         days: [],
-                        cases: zeros(NP)
+                        cases: zeros(NP),
+                        weekly: weeks.map(function () { return zeros(NP); })
                     };
                 }
 
@@ -787,6 +807,8 @@ var DailySanLuongReport = {
                         num(rec[P[j].key])
                     );
                     g.cases[j] += num((rec.soldCases || {})[P[j].key]);
+                    // Reuse exact-code conversions from sanpham.ket; never divide a merged column again.
+                    g.weekly[weekByDay[day]][j] += num((rec.soldCases || {})[P[j].key]);
                 }
             });
 
@@ -811,6 +833,7 @@ var DailySanLuongReport = {
             var totalSum = zeros(NP);
             var grandTotal = 0;
             var totalTd = 0;
+            var weeklyTotals = weeks.map(function () { return zeros(NP); });
 
             var list = keys.map(function (key) {
                 var g = groups[key];
@@ -850,6 +873,9 @@ var DailySanLuongReport = {
 
                 grandTotal += grand;
                 totalTd += tdSum;
+                g.weekly.forEach(function (values, wi) {
+                    values.forEach(function (value, pi) { weeklyTotals[wi][pi] += value; });
+                });
 
                 return {
                     g: g,
@@ -970,6 +996,9 @@ var DailySanLuongReport = {
                     ? sumWidths.concat(daysWidths)
                     : daysWidths.concat(sumWidths)
             );
+            weeks.forEach(function () {
+                for (var j = 0; j < NP + 1; j++) widths.push(self.widthSum);
+            });
 
             var oldCg = table.querySelector("colgroup");
 
@@ -1155,6 +1184,13 @@ var DailySanLuongReport = {
                 addDayHeaders();
                 addSumHeaders();
             }
+            weeks.forEach(function (week, wi) {
+                var cls = wi % 2 === 0 ? "qd" : "alt";
+                addTh(tr1, "Tuần " + (wi + 1) + " (" + pad2(week.start) + "–" +
+                    pad2(week.end) + "/" + pad2(thang) + "/" + nam + ") – Thùng/két", 1, NP + 1, cls);
+                weeklyLabels.forEach(function (label) { addTh(tr2, label, 1, 1, cls); });
+                addTh(tr2, "Tổng tuần " + (wi + 1), 1, 1, cls + " tot");
+            });
 
             head.appendChild(tr1);
             head.appendChild(tr2);
@@ -1214,6 +1250,19 @@ var DailySanLuongReport = {
                 addCell(r.focusName || "", "ctc");
             };
 
+            var addWeeklyCells = function (weekly, addCell) {
+                weekly.forEach(function (values, wi) {
+                    var cls = wi % 2 === 0 ? "qd" : "alt";
+                    var sum = 0;
+                    values.forEach(function (value) {
+                        addCell(r1(value), cls);
+                        sum += value;
+                    });
+                    // Sum unrounded quantities, just like the existing monthly totals.
+                    addCell(r1(sum), cls + " tot");
+                });
+            };
+
             list.forEach(function (r, index) {
                 var rec = r.rec;
                 var row = doc.createElement("tr");
@@ -1268,6 +1317,7 @@ var DailySanLuongReport = {
                     addDayCells(r, addCell);
                     addSumCells(r, addCell);
                 }
+                addWeeklyCells(r.g.weekly, addCell);
 
                 row.setAttribute("data-report-province", rec.tenthitruong || rec.thitruong || "" );
                 row.setAttribute("data-province-columns", "12" );
@@ -1332,6 +1382,7 @@ var DailySanLuongReport = {
                 addDayTotals();
                 addSumTotals();
             }
+            addWeeklyCells(weeklyTotals, addTotal);
 
             body.appendChild(totalRow);
         };

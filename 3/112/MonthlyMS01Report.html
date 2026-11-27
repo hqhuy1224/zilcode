@@ -55,16 +55,54 @@ table.rpt{width:1856px;border-collapse:collapse;table-layout:fixed;background:#f
 .rpt .notes strong{font-size:14px;text-decoration:underline}
 .rpt .supplier-name{vertical-align:bottom;font-size:18px;font-style:italic;font-weight:bold;padding-bottom:8px}
 .rpt .doc-footer td{height:18px;border-top:1px solid #888;color:#000;font-size:12px;white-space:nowrap}
-@page{size:A3 landscape;margin:8mm}
+@page{size:A4 landscape;margin:5mm}
+@media screen{table.rpt{zoom:var(--ms01-screen-zoom,1)}}
+html.ms01-print-layout table.rpt{zoom:var(--ms01-print-zoom,.58);margin:0}
+html.ms01-print-layout .rpt tbody tr.d,html.ms01-print-layout .rpt tbody tr.d>td{height:var(--ms01-day-height,27px)}
+html.ms01-print-layout .rpt thead,html.ms01-print-layout .rpt tfoot{display:table-row-group}
 @media print{
- body{margin:0}.toolbar,.warn{display:none!important}
- table.rpt{zoom:.72;margin:0;break-after:page;page-break-after:always}
+ html,body{height:auto;overflow:visible} body{margin:0}.toolbar,.warn{display:none!important}
+ table.rpt{zoom:var(--ms01-print-zoom,.58);margin:0;break-inside:avoid;page-break-inside:avoid;break-after:page;page-break-after:always}
+ .rpt tbody tr.d,.rpt tbody tr.d>td{height:var(--ms01-day-height,27px)}
  table.rpt:last-child{break-after:auto;page-break-after:auto}
  .rpt thead,.rpt tfoot{display:table-row-group}
+ .rpt tfoot{break-inside:avoid;page-break-inside:avoid}
  .rpt tr{break-inside:avoid;page-break-inside:avoid}
  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 </style>
+
+<script>
+// Match the screen width, then lay out each complete report on one A4 page.
+function fitMS01Screen() {
+ var table = document.querySelector('#divReport table.rpt');
+ document.documentElement.style.setProperty('--ms01-screen-zoom', document.documentElement.clientWidth / (table ? table.offsetWidth : 1856));
+}
+window.addEventListener('resize', fitMS01Screen);
+window.addEventListener('DOMContentLoaded', fitMS01Screen);
+window.addEventListener('beforeprint', function () {
+ // Measure with the print layout even when Ctrl+P fires before print media is active.
+ document.documentElement.classList.add('ms01-print-layout');
+ var width = 287 * 96 / 25.4 - 1, height = 198 * 96 / 25.4;
+ document.querySelectorAll('#divReport table.rpt').forEach(function (table) {
+  var scale = width / table.offsetWidth;
+  table.style.setProperty('--ms01-print-zoom', scale);
+  // Fit the measured whole table, including notes, signatures and footer borders.
+  var low = 0, high = 80;
+  for (var i = 0; i < 14; i++) {
+   var rowHeight = (low + high) / 2;
+   table.style.setProperty('--ms01-day-height', rowHeight + 'px');
+   if (table.getBoundingClientRect().height <= height) low = rowHeight;
+   else high = rowHeight;
+  }
+  table.style.setProperty('--ms01-day-height', low + 'px');
+ });
+});
+window.addEventListener('afterprint', function () {
+ document.documentElement.classList.remove('ms01-print-layout');
+ fitMS01Screen();
+});
+</script>
 </head>
 <body>
 <div class="toolbar">
@@ -330,7 +368,7 @@ MS01Template.init();
                                         '<x:FitWidth>1</x:FitWidth>' +
                                         '<x:FitHeight>0</x:FitHeight>' +
                                         '<x:ValidPrinterInfo/>' +
-                                        '<x:PaperSizeIndex>8</x:PaperSizeIndex>' +
+                                        '<x:PaperSizeIndex>9</x:PaperSizeIndex>' +
                                     '</x:Print>' +
                                 '</x:WorksheetOptions>' +
                             '</x:ExcelWorksheet>' +
@@ -341,7 +379,7 @@ MS01Template.init();
                 '<style>' +
                     'body{font-family:"Times New Roman",serif;font-size:10pt;}' +
                     'table{border-collapse:collapse;table-layout:fixed;}' +
-                    '@page{size:42cm 29.7cm;mso-page-orientation:landscape;margin:0.5cm;}' +
+                    '@page{size:29.7cm 21cm;mso-page-orientation:landscape;margin:0.5cm;}' +
                 '</style>' +
                 '</head>' +
                 '<body>' + body + '</body>' +
